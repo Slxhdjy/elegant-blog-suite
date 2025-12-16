@@ -24,10 +24,8 @@ class DataAdapter {
             
             // 如果是GitHub Pages环境
             if (window.location.hostname.includes('github.io')) {
-                // 直接使用绝对路径，避免相对路径问题
-                const pathParts = window.location.pathname.split('/').filter(p => p);
-                const baseUrl = pathParts.length > 0 ? `/${pathParts[0]}` : '';
-                url = `${baseUrl}/data/${resource}.json`;
+                // GitHub Pages: data和blog是同级目录，直接使用/data/路径
+                url = `/data/${resource}.json`;
             } else {
                 // 本地环境使用相对路径
                 if (currentPath.includes('/blog/pages/')) {
