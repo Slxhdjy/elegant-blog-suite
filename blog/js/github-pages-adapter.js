@@ -1,6 +1,6 @@
 /**
  * GitHub Pages 适配器
- * 解决静态部署中的路径和功能问题
+ * 解决静态部署中的路径和功能问题，使用实际仓库文件
  */
 
 class GitHubPagesAdapter {
@@ -30,9 +30,9 @@ class GitHubPagesAdapter {
     
     // 初始化适配
     init() {
+        this.setupStaticMode();
         this.fixImagePaths();
         this.fixVideoPaths();
-        this.setupStaticMode();
         this.fixNavigationPaths();
     }
     
@@ -53,42 +53,12 @@ class GitHubPagesAdapter {
         elements.forEach(el => {
             const style = el.style.backgroundImage;
             if (style && style.includes('url(') && !style.includes('http')) {
-                const newStyle = style.replace(/url\(['"]?([^'"]+)['"]?\)/g, (match, url) => {
+                const newStyle = style.replace(/url\(['"]?([^'"]+)['"]?\)/g, (_, url) => {
                     return `url('${this.fixPath(url)}')`;
                 });
                 el.style.backgroundImage = newStyle;
             }
         });
-    }
-    
-    // 修复数据文件路径
-    fixDataPaths() {
-        // 重写fetch函数以修复数据路径
-        const originalFetch = window.fetch;
-        window.fetch = (url, options) => {
-            if (typeof url === 'string') {
-                let newUrl = url;
-                
-                // 修复相对路径的数据文件
-                if (url.startsWith('../data/')) {
-                    newUrl = `${this.baseUrl}/data/${url.replace('../data/', '')}`;
-                    console.log('📊 修复数据路径:', url, '→', newUrl);
-                } else if (url.startsWith('../../data/')) {
-                    // 处理 pages 目录下的路径
-                    newUrl = `${this.baseUrl}/data/${url.replace('../../data/', '')}`;
-                    console.log('📊 修复数据路径:', url, '→', newUrl);
-                } else if (url.startsWith('/data/')) {
-                    newUrl = `${this.baseUrl}${url}`;
-                    console.log('📊 修复数据路径:', url, '→', newUrl);
-                } else if (url.startsWith('data/')) {
-                    newUrl = `${this.baseUrl}/${url}`;
-                    console.log('📊 修复数据路径:', url, '→', newUrl);
-                }
-                
-                return originalFetch(newUrl, options);
-            }
-            return originalFetch(url, options);
-        };
     }
     
     // 修复视频路径
@@ -138,6 +108,7 @@ class GitHubPagesAdapter {
             return `${this.baseUrl}/blog/${relativePath}`;
         } else if (path.startsWith('/')) {
             // /data/xxx.json -> /repository-name/data/xxx.json
+            // /uploads/xxx.jpg -> /repository-name/uploads/xxx.jpg
             return `${this.baseUrl}${path}`;
         } else {
             // images/xxx.jpg -> /repository-name/blog/images/xxx.jpg
@@ -157,7 +128,7 @@ class GitHubPagesAdapter {
         this.mockServerAPIs();
     }
     
-    // 模拟服务器API和修复路径
+    // 模拟服务器API但保留实际文件路径
     mockServerAPIs() {
         // 模拟上传功能
         window.mockUpload = true;
@@ -165,11 +136,11 @@ class GitHubPagesAdapter {
         // 模拟保存功能
         window.mockSave = true;
         
-        // 重写 fetch 以拦截 API 调用和修复路径
+        // 重写 fetch 以拦截 API 调用但保留实际文件路径
         const originalFetch = window.fetch;
         const adapter = this;
         
-        window.fetch = function(url, options) {
+        window.fetch = async function(url, options) {
             if (typeof url === 'string') {
                 // 如果是 API 调用（包含 localhost 或以 /api/ 开头）
                 if (url.includes('localhost') || url.includes('127.0.0.1') || url.startsWith('/api/')) {
@@ -206,55 +177,61 @@ class GitHubPagesAdapter {
                     console.log('📊 修复数据路径:', url, '→', newUrl);
                 }
                 
-                // 处理数据文件，替换本地URL
+                // 处理数据文件，修复其中的路径但保留实际文件引用
                 if (url.includes('.json')) {
                     return originalFetch(newUrl, options).then(response => {
                         if (response.ok) {
                             return response.json().then(data => {
                                 let processedData = data;
                                 
-                                // 处理视频数据
+                                // 处理视频数据 - 修复路径但保留实际文件
                                 if (url.includes('videos.json') && Array.isArray(data)) {
                                     processedData = data.map(video => {
-                                        if (video.url && (video.url.includes('localhost') || video.url.includes('127.0.0.1') || video.url.startsWith('/uploads/'))) {
-                                            return {
-                                                ...video,
-                                                url: 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
-                                                cover: (video.cover && (video.cover.includes('localhost') || video.cover.startsWith('/uploads/')))
-                                                    ? 'https://picsum.photos/640/360?random=' + video.id 
-                                                    : video.cover,
-                                                description: video.description + ' (静态模式示例)'
-                                            };
+                                        const newVideo = { ...video };
+                                        
+                                        // 修复视频URL路径
+                                        if (video.url && video.url.startsWith('/uploads/')) {
+                                            newVideo.url = `${adapter.baseUrl}${video.url}`;
                                         }
-                                        return video;
+                                        
+                                        // 修复封面图片路径
+                                        if (video.cover && video.cover.startsWith('/uploads/')) {
+                                            newVideo.cover = `${adapter.baseUrl}${video.cover}`;
+                                        }
+                                        
+                                        return newVideo;
                                     });
-                                    console.log('🎬 已替换本地视频为示例视频');
+                                    console.log('🎬 已修复视频文件路径，使用实际仓库文件');
                                 }
                                 
-                                // 处理图片数据
+                                // 处理图片数据 - 修复路径但保留实际文件
                                 if (url.includes('images.json') && Array.isArray(data)) {
                                     processedData = data.map(image => {
-                                        if (image.url && (image.url.includes('localhost') || image.url.startsWith('/uploads/'))) {
-                                            return {
-                                                ...image,
-                                                url: 'https://picsum.photos/800/600?random=' + image.id,
-                                                thumbnail: 'https://picsum.photos/300/300?random=' + image.id,
-                                                description: (image.description || '示例图片') + ' (静态模式)'
-                                            };
+                                        const newImage = { ...image };
+                                        
+                                        // 修复图片URL路径
+                                        if (image.url && image.url.startsWith('/uploads/')) {
+                                            newImage.url = `${adapter.baseUrl}${image.url}`;
                                         }
-                                        return image;
+                                        
+                                        // 修复缩略图路径
+                                        if (image.thumbnail && image.thumbnail.startsWith('/uploads/')) {
+                                            newImage.thumbnail = `${adapter.baseUrl}${image.thumbnail}`;
+                                        }
+                                        
+                                        return newImage;
                                     });
-                                    console.log('🖼️ 已替换本地图片为示例图片');
+                                    console.log('🖼️ 已修复图片文件路径，使用实际仓库文件');
                                 }
                                 
-                                // 处理设置数据
+                                // 处理设置数据 - 修复头像路径但保留实际文件
                                 if (url.includes('settings.json') && data.avatar) {
-                                    if (data.avatar.includes('localhost') || data.avatar.startsWith('/uploads/')) {
+                                    if (data.avatar.startsWith('/uploads/')) {
                                         processedData = {
                                             ...data,
-                                            avatar: 'https://ui-avatars.com/api/?name=执念&size=200&background=4fc3f7&color=fff&bold=true'
+                                            avatar: `${adapter.baseUrl}${data.avatar}`
                                         };
-                                        console.log('👤 已替换本地头像为默认头像');
+                                        console.log('👤 已修复头像路径，使用实际仓库文件');
                                     }
                                 }
                                 
@@ -276,7 +253,7 @@ class GitHubPagesAdapter {
             return originalFetch(url, options);
         };
         
-        console.log('🔧 已启用静态模式，API调用将被拦截，数据路径已修复');
+        console.log('🔧 已启用静态模式，API调用将被拦截，使用实际仓库文件');
     }
     
     // 显示静态模式提示
