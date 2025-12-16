@@ -111,8 +111,16 @@ class GitHubPagesAdapter {
             // /uploads/xxx.jpg -> /repository-name/uploads/xxx.jpg
             return `${this.baseUrl}${path}`;
         } else {
-            // images/xxx.jpg -> /repository-name/blog/images/xxx.jpg
-            return `${this.baseUrl}/blog/${path}`;
+            // 相对路径处理：根据当前页面位置判断
+            const currentPath = window.location.pathname;
+            
+            if (currentPath.includes('/blog/')) {
+                // 当前在blog目录下，相对路径需要相对于blog目录
+                return `${this.baseUrl}/blog/${path}`;
+            } else {
+                // 当前在根目录，相对路径相对于根目录
+                return `${this.baseUrl}/${path}`;
+            }
         }
     }
     
