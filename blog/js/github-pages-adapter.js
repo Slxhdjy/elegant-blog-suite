@@ -206,30 +206,60 @@ class GitHubPagesAdapter {
                     console.log('📊 修复数据路径:', url, '→', newUrl);
                 }
                 
-                // 处理视频数据，替换本地URL
-                if (url.includes('videos.json')) {
+                // 处理数据文件，替换本地URL
+                if (url.includes('.json')) {
                     return originalFetch(newUrl, options).then(response => {
                         if (response.ok) {
-                            return response.json().then(videos => {
-                                // 替换本地视频URL为占位符
-                                const processedVideos = videos.map(video => {
-                                    if (video.url && (video.url.includes('localhost') || video.url.includes('127.0.0.1'))) {
-                                        return {
-                                            ...video,
-                                            url: 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
-                                            cover: video.cover.includes('localhost') 
-                                                ? 'https://picsum.photos/640/360?random=' + video.id 
-                                                : video.cover,
-                                            description: video.description + ' (静态模式下使用示例视频)'
-                                        };
-                                    }
-                                    return video;
-                                });
+                            return response.json().then(data => {
+                                let processedData = data;
                                 
-                                console.log('🎬 已替换本地视频为示例视频');
+                                // 处理视频数据
+                                if (url.includes('videos.json') && Array.isArray(data)) {
+                                    processedData = data.map(video => {
+                                        if (video.url && (video.url.includes('localhost') || video.url.includes('127.0.0.1') || video.url.startsWith('/uploads/'))) {
+                                            return {
+                                                ...video,
+                                                url: 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
+                                                cover: (video.cover && (video.cover.includes('localhost') || video.cover.startsWith('/uploads/')))
+                                                    ? 'https://picsum.photos/640/360?random=' + video.id 
+                                                    : video.cover,
+                                                description: video.description + ' (静态模式示例)'
+                                            };
+                                        }
+                                        return video;
+                                    });
+                                    console.log('🎬 已替换本地视频为示例视频');
+                                }
+                                
+                                // 处理图片数据
+                                if (url.includes('images.json') && Array.isArray(data)) {
+                                    processedData = data.map(image => {
+                                        if (image.url && (image.url.includes('localhost') || image.url.startsWith('/uploads/'))) {
+                                            return {
+                                                ...image,
+                                                url: 'https://picsum.photos/800/600?random=' + image.id,
+                                                thumbnail: 'https://picsum.photos/300/300?random=' + image.id,
+                                                description: (image.description || '示例图片') + ' (静态模式)'
+                                            };
+                                        }
+                                        return image;
+                                    });
+                                    console.log('🖼️ 已替换本地图片为示例图片');
+                                }
+                                
+                                // 处理设置数据
+                                if (url.includes('settings.json') && data.avatar) {
+                                    if (data.avatar.includes('localhost') || data.avatar.startsWith('/uploads/')) {
+                                        processedData = {
+                                            ...data,
+                                            avatar: 'https://ui-avatars.com/api/?name=执念&size=200&background=4fc3f7&color=fff&bold=true'
+                                        };
+                                        console.log('👤 已替换本地头像为默认头像');
+                                    }
+                                }
                                 
                                 // 返回修改后的响应
-                                return new Response(JSON.stringify(processedVideos), {
+                                return new Response(JSON.stringify(processedData), {
                                     status: response.status,
                                     statusText: response.statusText,
                                     headers: response.headers
