@@ -1,32 +1,22 @@
 [
   {
-    "id": 1,
-    "name": "GitHub",
-    "url": "https://github.com",
-    "description": "全球最大的代码托管平台",
-    "avatar": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
-    "category": "开发工具",
+    "id": 1763851783299,
+    "name": "散落星河的记忆",
+    "url": "https://slxhdjy.github.io/",
+    "description": "测试",
+    "avatar": "/uploads/images/2.jpg",
+    "category": "个人",
     "status": "active",
-    "addedDate": "2025-12-16"
+    "addedDate": "2025-11-22"
   },
   {
-    "id": 2,
-    "name": "MDN Web Docs",
-    "url": "https://developer.mozilla.org",
-    "description": "Web 开发者的最佳学习资源",
-    "avatar": "https://developer.mozilla.org/favicon-48x48.cbbd161b5e05.png",
-    "category": "学习资源",
+    "id": 1765377653953,
+    "name": "夜猫君",
+    "url": "https://www.yemaojun.top/",
+    "description": "一个关于SAP开发的个人blog",
+    "avatar": "https://www.yemaojun.top/imag/%E5%A4%B4%E5%83%8F.jpg",
+    "category": "技术",
     "status": "active",
-    "addedDate": "2025-12-16"
-  },
-  {
-    "id": 3,
-    "name": "Vue.js",
-    "url": "https://vuejs.org",
-    "description": "渐进式 JavaScript 框架",
-    "avatar": "https://vuejs.org/logo.svg",
-    "category": "前端框架",
-    "status": "active",
-    "addedDate": "2025-12-16"
+    "addedDate": "2025-12-10"
   }
 ]

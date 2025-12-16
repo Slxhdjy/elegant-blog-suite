@@ -46,8 +46,8 @@ class VideoBackgroundManager {
     async fetchBackgroundVideos() {
         try {
             console.log('📡 正在获取背景视频列表...');
-            // 使用3001端口的API服务器
-            const response = await fetch('http://localhost:3001/api/background-videos');
+            // 直接从数据文件获取视频列表
+            const response = await fetch('../data/videos.json');
             
             if (!response.ok) {
                 console.error('API响应错误:', response.status, response.statusText);
@@ -66,9 +66,11 @@ class VideoBackgroundManager {
                 return null;
             }
             
-            if (result.success && result.data && result.data.length > 0) {
-                console.log(`✅ 找到 ${result.data.length} 个背景视频`);
-                return result.data;
+            if (result && Array.isArray(result) && result.length > 0) {
+                // 过滤出BG类型的视频作为背景视频
+                const backgroundVideos = result.filter(video => video.category === 'BG');
+                console.log(`✅ 找到 ${backgroundVideos.length} 个背景视频`);
+                return backgroundVideos;
             } else {
                 console.log('没有找到背景视频');
                 return null;

@@ -2,19 +2,37 @@
   {
     "id": 1,
     "name": "技术",
-    "description": "编程技术、开发经验分享",
-    "count": 2
+    "description": "技术相关文章",
+    "count": 9
   },
   {
     "id": 2,
-    "name": "随笔",
-    "description": "生活感悟、随想记录",
-    "count": 2
+    "name": "生活",
+    "description": "生活随笔",
+    "count": 0
   },
   {
     "id": 3,
-    "name": "摄影",
-    "description": "摄影技巧、作品分享",
-    "count": 1
+    "name": "设计",
+    "description": "设计相关内容",
+    "count": 0
+  },
+  {
+    "id": 4,
+    "name": "未分类",
+    "description": "",
+    "count": 0
+  },
+  {
+    "id": 5,
+    "name": "随笔",
+    "description": "日常记录",
+    "count": 4
+  },
+  {
+    "id": 6,
+    "name": "教程",
+    "description": "操作指南",
+    "count": 10
   }
 ]
