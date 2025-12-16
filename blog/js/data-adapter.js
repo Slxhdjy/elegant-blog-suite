@@ -24,8 +24,17 @@ class DataAdapter {
             
             // 如果是GitHub Pages环境
             if (window.location.hostname.includes('github.io')) {
-                // GitHub Pages: data和blog是同级目录，直接使用/data/路径
-                url = `/data/${resource}.json`;
+                // GitHub Pages: data和blog是同级目录
+                if (currentPath.includes('/blog/pages/')) {
+                    // 从pages目录访问: ../../data/
+                    url = `../../data/${resource}.json`;
+                } else if (currentPath.includes('/blog/')) {
+                    // 从blog目录访问: ../data/
+                    url = `../data/${resource}.json`;
+                } else {
+                    // 从根目录访问: data/
+                    url = `data/${resource}.json`;
+                }
             } else {
                 // 本地环境使用相对路径
                 if (currentPath.includes('/blog/pages/')) {
