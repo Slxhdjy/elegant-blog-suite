@@ -22,6 +22,10 @@ class DataAdapter {
             const currentPath = window.location.pathname;
             let url;
             
+            console.log(`🔍 当前路径: ${currentPath}`);
+            console.log(`🔍 是否包含/blog/pages/: ${currentPath.includes('/blog/pages/')}`);
+            console.log(`🔍 是否包含/blog/: ${currentPath.includes('/blog/')}`);
+            
             // 如果是GitHub Pages环境
             if (window.location.hostname.includes('github.io')) {
                 // GitHub Pages: data和blog是同级目录
