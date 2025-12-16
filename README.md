@@ -1424,7 +1424,7 @@ A: 这是v2.0.1已修复的问题，解决方法：
 
 ```bash
 # 1. Fork 项目
-git clone https://github.com/yourusername/personal-blog-system.git
+git clone https://github.com/slxhdjy/elegant-blog-suite.git
 
 # 2. 创建特性分支
 git checkout -b feature/amazing-feature
@@ -1490,14 +1490,14 @@ git push origin feature/amazing-feature
 
 <div align="center">
 
-[![Contributors](https://contrib.rocks/image?repo=yourusername/personal-blog-system)](https://github.com/yourusername/personal-blog-system/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=yourusername/personal-blog-system)](https://github.com/slxhdjy/elegant-blog-suite/contributors)
 
 </div>
 
 ### 💬 交流讨论
 
-- **💬 Discussions** - [GitHub讨论区](https://github.com/yourusername/personal-blog-system/discussions)
-- **🐛 Issues** - [问题反馈](https://github.com/yourusername/personal-blog-system/issues)
+- **💬 Discussions** - [GitHub讨论区](https://github.com/slxhdjy/elegant-blog-suite/discussions)
+- **🐛 Issues** - [问题反馈](https://github.com/slxhdjy/elegant-blog-suite/issues)
 - **📧 邮件** - 发送邮件到项目维护者
 
 **让我们一起构建更好的博客系统！** 🚀
@@ -1517,7 +1517,7 @@ git push origin feature/amazing-feature
 ### 🤝 联系作者
 
 **👨‍💻 作者**: ℳঞ执念ꦿ  
-**🌟 项目**: [Personal Blog System](https://github.com/yourusername/personal-blog-system)
+**🌟 项目**: [Personal Blog System](https://github.com/slxhdjy/elegant-blog-suite)
 
 </div>
 
@@ -1525,10 +1525,10 @@ git push origin feature/amazing-feature
 
 | 渠道 | 地址 | 用途 |
 |------|------|------|
-| 🐛 **Issues** | [GitHub Issues](https://github.com/yourusername/personal-blog-system/issues) | Bug反馈、功能建议 |
-| 💬 **Discussions** | [GitHub Discussions](https://github.com/yourusername/personal-blog-system/discussions) | 技术讨论、使用交流 |
-| 📧 **Email** | [发送邮件](mailto:your-email@example.com) | 商务合作、私人咨询 |
-| 🌟 **Star** | [给项目点星](https://github.com/yourusername/personal-blog-system) | 支持项目发展 |
+| 🐛 **Issues** | [GitHub Issues](https://github.com/slxhdjy/elegant-blog-suite/issues) | Bug反馈、功能建议 |
+| 💬 **Discussions** | [GitHub Discussions](https://github.com/slxhdjy/elegant-blog-suite/discussions) | 技术讨论、使用交流 |
+| 📧 **Email** | [发送邮件](2420751044@qq.com) | 商务合作、私人咨询 |
+| 🌟 **Star** | [给项目点星](https://github.com/slxhdjy/elegant-blog-suite) | 支持项目发展 |
 
 ### 🤝 合作机会
 
@@ -1637,7 +1637,7 @@ git push origin feature/amazing-feature
 
 感谢所有为开源社区做出贡献的开发者们！
 
-**Made with ❤️ by [ℳঞ执念ꦿ](https://github.com/yourusername)**
+**Made with ❤️ by [ℳঞ执念ꦿ](https://github.com/Slxhdjy)**
 
 **© 2024 Personal Blog System. All rights reserved.**
 
