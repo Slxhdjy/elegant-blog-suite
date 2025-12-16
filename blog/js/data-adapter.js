@@ -29,14 +29,15 @@ class DataAdapter {
             // 如果是GitHub Pages环境
             if (window.location.hostname.includes('github.io')) {
                 // GitHub Pages: data和blog是同级目录
-                if (currentPath.includes('/blog/pages/')) {
-                    // 从pages目录访问: ../../data/
+                // 简化判断：直接检查URL结构
+                if (currentPath.endsWith('.html') && currentPath.includes('/pages/')) {
+                    // 在pages目录下的页面: ../../data/
                     url = `../../data/${resource}.json`;
                 } else if (currentPath.includes('/blog/')) {
-                    // 从blog目录访问: ../data/
+                    // 在blog目录下: ../data/
                     url = `../data/${resource}.json`;
                 } else {
-                    // 从根目录访问: data/
+                    // 在根目录: data/
                     url = `data/${resource}.json`;
                 }
             } else {
