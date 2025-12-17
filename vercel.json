@@ -2,6 +2,18 @@
   "outputDirectory": ".",
   "rewrites": [
     {
+      "source": "/admin/css/(.*)",
+      "destination": "/blog-admin/css/$1"
+    },
+    {
+      "source": "/admin/js/(.*)",
+      "destination": "/blog-admin/js/$1"
+    },
+    {
+      "source": "/admin/pages/(.*)",
+      "destination": "/blog-admin/pages/$1"
+    },
+    {
       "source": "/admin/(.*)",
       "destination": "/blog-admin/$1"
     },
