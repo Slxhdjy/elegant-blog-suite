@@ -20,6 +20,26 @@
     {
       "source": "/gallery",
       "destination": "/blog/pages/gallery.html"
+    },
+    {
+      "source": "/css/(.*)",
+      "destination": "/blog/css/$1"
+    },
+    {
+      "source": "/js/(.*)",
+      "destination": "/blog/js/$1"
+    },
+    {
+      "source": "/images/(.*)",
+      "destination": "/blog/images/$1"
+    },
+    {
+      "source": "/uploads/(.*)",
+      "destination": "/uploads/$1"
+    },
+    {
+      "source": "/data/(.*)",
+      "destination": "/data/$1"
     }
   ],
   "headers": [
