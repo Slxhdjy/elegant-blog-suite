@@ -21,19 +21,20 @@ class AppsManager {
     // 加载应用数据
     async loadApps() {
         try {
-            const response = await fetch('http://localhost:3001/api/apps');
-            const result = await response.json();
-            
-            if (result.success) {
+            // 使用数据存储包装器获取应用数据
+            if (window.blogDataStore) {
+                const allData = await window.blogDataStore.getAllData();
+                const appsData = allData.apps || [];
+                
                 // 只显示启用的应用，并按order排序
-                this.apps = result.data
+                this.apps = appsData
                     .filter(app => app.status === 'enabled')
                     .sort((a, b) => (a.order || 0) - (b.order || 0));
                 
                 this.filteredApps = [...this.apps];
                 console.log(`✅ 加载了 ${this.apps.length} 个应用`);
             } else {
-                console.error('❌ 加载应用失败');
+                console.error('❌ blogDataStore 未初始化');
                 this.apps = [];
                 this.filteredApps = [];
             }
