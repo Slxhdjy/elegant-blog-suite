@@ -1008,7 +1008,7 @@ A: 这是v2.0.1已修复的问题，解决方法：
 | 平台 | 地址 | 说明 |
 |------|------|------|
 | 🚀 **Vercel** | [Demo Site](https://personal-blog-system.vercel.app) | 推荐体验地址 |
-| 📄 **GitHub Pages** | [GitHub Demo](https://yourusername.github.io/personal-blog-system) | 备用地址 |
+| 📄 **GitHub Pages** | [GitHub Demo](https://zn-blog.github.io/) | 备用地址 |
 
 ### 📱 功能演示
 
