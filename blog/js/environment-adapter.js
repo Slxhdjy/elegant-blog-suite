@@ -150,7 +150,7 @@ class EnvironmentAdapter {
     // Vercel环境：保存到云存储
     async saveDataToVercel(resource, data) {
         try {
-            const response = await fetch(`${this.apiBase}/${resource}`, {
+            const response = await fetch(`${this.apiBase}/${resource}/batch`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)

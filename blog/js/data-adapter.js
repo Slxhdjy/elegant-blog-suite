@@ -75,30 +75,9 @@ class DataAdapter {
         return await this.environmentAdapter.getData(resource);
     }
 
-    // 保存数据（通过 API 保存到 JSON 文件）
+    // 保存数据（通过环境适配器）
     async saveData(resource, data) {
-        try {
-            // 通过 API 保存到服务器（JSON 文件）
-            const response = await fetch(`http://localhost:3001/api/${resource}/batch`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            });
-            
-            if (!response.ok) {
-                throw new Error(`API 保存失败: ${response.status}`);
-            }
-            
-            const result = await response.json();
-            console.log(`✅ 数据已保存到 JSON 文件: ${resource}`);
-            return { success: true, data: result };
-        } catch (error) {
-            console.error(`❌ 保存数据失败 (${resource}):`, error);
-            console.error('请确保服务器正在运行 (node unified-server.js)');
-            return { success: false, message: error.message };
-        }
+        return await this.environmentAdapter.saveData(resource, data);
     }
 
     // ========== 文章相关方法 ==========
@@ -125,25 +104,31 @@ class DataAdapter {
     // 更新文章（支持点赞等操作）
     async updateArticle(id, updates) {
         try {
-            // 通过 API 更新文章
-            const response = await fetch(`http://localhost:3001/api/articles/${id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(updates)
-            });
-            
-            if (!response.ok) {
-                throw new Error(`API 更新失败: ${response.status}`);
+            if (!this.environmentAdapter.supportsWrite) {
+                console.warn('⚠️ 当前环境不支持写入操作');
+                return null;
             }
             
-            const result = await response.json();
-            console.log(`✅ 文章已更新: ${id}`);
-            return result.data;
+            // 获取当前文章列表
+            const articles = await this.getData('articles');
+            const index = articles.findIndex(article => article.id === parseInt(id));
+            
+            if (index !== -1) {
+                // 更新文章
+                articles[index] = { ...articles[index], ...updates };
+                
+                // 保存更新后的数据
+                const result = await this.saveData('articles', articles);
+                if (result.success) {
+                    console.log(`✅ 文章已更新: ${id}`);
+                    return articles[index];
+                }
+            }
+            
+            console.warn('⚠️ 未找到文章:', id);
+            return null;
         } catch (error) {
             console.error(`❌ 更新文章失败 (${id}):`, error);
-            console.error('请确保服务器正在运行 (node unified-server.js)');
             return null;
         }
     }
@@ -356,29 +341,11 @@ class DataAdapter {
         }
         
         // 异步更新 settings（不阻塞返回）
-        if (needUpdate) {
-            // 先获取完整的 settings，然后只更新需要的字段
-            fetch('http://localhost:3001/api/settings')
-                .then(response => response.json())
+        if (needUpdate && this.environmentAdapter.supportsWrite) {
+            this.environmentAdapter.saveData('settings', settings)
                 .then(result => {
                     if (result.success) {
-                        const fullSettings = result.data;
-                        // 只更新计算的字段
-                        fullSettings.totalWords = calculatedWords;
-                        fullSettings.totalViews = calculatedViews;
-                        
-                        // 保存完整的 settings
-                        return fetch('http://localhost:3001/api/settings', {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(fullSettings)
-                        });
-                    }
-                })
-                .then(response => response.json())
-                .then(result => {
-                    if (result.success) {
-                        console.log('✅ 统计数据已自动更新到 settings.json');
+                        console.log('✅ 统计数据已自动更新');
                         console.log(`   总字数: ${calculatedWords}, 总访问量: ${calculatedViews}`);
                     }
                 })
