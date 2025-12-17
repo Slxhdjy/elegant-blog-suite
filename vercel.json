@@ -1,6 +1,9 @@
 {
   "version": 2,
   "name": "my-blog-system",
+  "buildCommand": "echo 'No build needed for static site'",
+  "outputDirectory": "./",
+  "installCommand": "npm install",
   "headers": [
     {
       "source": "/(.*)",
