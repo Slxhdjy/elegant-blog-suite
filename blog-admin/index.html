@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <base href="/blog-admin/">
     <title>博客后台管理系统</title>
     
     <!-- ⚡ 主题和背景预加载 - 避免闪烁，必须在CSS之前 -->
@@ -85,34 +84,34 @@
         })();
     </script>
     
-    <link rel="stylesheet" href="css/admin.css?v=20251205-emoji-fix">
-    <link rel="stylesheet" href="css/admin-ui-patch.css?v=20251205-emoji-fix">
-    <link rel="stylesheet" href="css/media-form-patch.css">
-    <link rel="stylesheet" href="css/logout-button-fix.css">
-    <link rel="stylesheet" href="css/weibo-hot-search.css?v=4.0">
-    <link rel="stylesheet" href="css/events-unified.css?v=20251120">
-    <link rel="stylesheet" href="css/dashboard-unified.css?v=20251205-emoji-fix-v2">
+    <link rel="stylesheet" href="/blog-admin/css/admin.css?v=20251205-emoji-fix">
+    <link rel="stylesheet" href="/blog-admin/css/admin-ui-patch.css?v=20251205-emoji-fix">
+    <link rel="stylesheet" href="/blog-admin/css/media-form-patch.css">
+    <link rel="stylesheet" href="/blog-admin/css/logout-button-fix.css">
+    <link rel="stylesheet" href="/blog-admin/css/weibo-hot-search.css?v=4.0">
+    <link rel="stylesheet" href="/blog-admin/css/events-unified.css?v=20251120">
+    <link rel="stylesheet" href="/blog-admin/css/dashboard-unified.css?v=20251205-emoji-fix-v2">
     <!-- 主题系统 -->
-    <link rel="stylesheet" href="../blog/css/themes.css">
-    <link rel="stylesheet" href="css/admin-theme-adapter.css?v=20251205-emoji-color-fix">
+    <link rel="stylesheet" href="/blog/css/themes.css">
+    <link rel="stylesheet" href="/blog-admin/css/admin-theme-adapter.css?v=20251205-emoji-color-fix">
     <!-- 留言统计卡片颜色修复 -->
-    <link rel="stylesheet" href="css/guestbook-stats-fix.css">
+    <link rel="stylesheet" href="/blog-admin/css/guestbook-stats-fix.css">
     <!-- 全新下拉框系统 - 简洁可靠 -->
-    <link rel="stylesheet" href="css/dropdown-new.css?v=20251123-new">
+    <link rel="stylesheet" href="/blog-admin/css/dropdown-new.css?v=20251123-new">
     <!-- 视频背景系统 -->
-    <link rel="stylesheet" href="css/admin-video-background.css">
+    <link rel="stylesheet" href="/blog-admin/css/admin-video-background.css">
     <!-- 统一滚动条样式 -->
-    <link rel="stylesheet" href="css/scrollbar-unified.css?v=20251210">
+    <link rel="stylesheet" href="/blog-admin/css/scrollbar-unified.css?v=20251210">
     <!-- 网站描述编辑器 -->
-    <link rel="stylesheet" href="css/description-editor.css">
+    <link rel="stylesheet" href="/blog-admin/css/description-editor.css">
     
     <!-- 模态框和设置页面主题修复 - 最后加载确保最高优先级 -->
-    <link rel="stylesheet" href="css/modal-theme-fix.css?v=20251210-final">
+    <link rel="stylesheet" href="/blog-admin/css/modal-theme-fix.css?v=20251210-final">
     
     <!-- 背景管理器 - 提前加载避免延迟 -->
-    <script src="js/admin-background.js?v=20251123"></script>
+    <script src="/blog-admin/js/admin-background.js?v=20251123"></script>
     <!-- 视频背景管理器 -->
-    <script src="js/admin-video-background.js"></script>
+    <script src="/blog-admin/js/admin-video-background.js"></script>
 </head>
 <body>
     <!-- 顶部栏 -->
@@ -211,7 +210,7 @@
             </a>
         </nav>
         <div class="sidebar-footer">
-            <a href="../blog/index.html" target="_blank" class="btn-view-site">查看网站</a>
+            <a href="/blog/index.html" target="_blank" class="btn-view-site">查看网站</a>
         </div>
     </aside>
 
@@ -1582,11 +1581,11 @@
     </div>
 
     <!-- 后台专用环境适配器 - 必须在数据适配器之前加载 -->
-    <script src="js/admin-environment-adapter.js"></script>
+    <script src="/blog-admin/js/admin-environment-adapter.js"></script>
     
     <!-- 认证检查 - 必须最先加载 -->
-    <script src="js/auth.js"></script>
-    <script src="js/user-manager.js"></script>
+    <script src="/blog-admin/js/auth.js"></script>
+    <script src="/blog-admin/js/user-manager.js"></script>
     <script>
         // 检查登录状态，未登录则跳转到登录页
         if (!AuthManager.requireAuth()) {
@@ -1595,19 +1594,19 @@
     </script>
     
     <!-- 数据适配层 - 支持JSON文件存储 -->
-    <script src="js/data-adapter.js"></script>
-    <script src="js/data-store-wrapper.js"></script>
+    <script src="/blog-admin/js/data-adapter.js"></script>
+    <script src="/blog-admin/js/data-store-wrapper.js"></script>
     
     <!-- 网站描述编辑器 -->
-    <script src="js/description-editor.js"></script>
+    <script src="/blog-admin/js/description-editor.js"></script>
     
-    <script src="../blog/js/code-theme-manager.js"></script>
-    <script src="js/file-uploader.js"></script>
-    <script src="js/feishu-image-downloader.js"></script>
-    <script src="js/import-export.js"></script>
-    <script src="js/feishu-importer.js"></script>
+    <script src="/blog/js/code-theme-manager.js"></script>
+    <script src="/blog-admin/js/file-uploader.js"></script>
+    <script src="/blog-admin/js/feishu-image-downloader.js"></script>
+    <script src="/blog-admin/js/import-export.js"></script>
+    <script src="/blog-admin/js/feishu-importer.js"></script>
     <!-- admin-background.js 已在head中加载，避免重复引入 -->
-    <script src="background-config.js"></script>
+    <script src="/blog-admin/background-config.js"></script>
     <script>
         // 备用背景设置 - 确保背景一定显示
         (function() {
@@ -1666,12 +1665,12 @@
             setTimeout(ensureBackground, 500);
         })();
     </script>
-    <script src="js/admin-theme-manager.js"></script>
-    <script src="js/admin.js"></script>
-    <script src="js/admin-render.js"></script>
+    <script src="/blog-admin/js/admin-theme-manager.js"></script>
+    <script src="/blog-admin/js/admin.js"></script>
+    <script src="/blog-admin/js/admin-render.js"></script>
     
     <!-- 全新下拉框系统 - 简洁可靠 -->
-    <script src="js/dropdown-new.js?v=20251123-new"></script>
+    <script src="/blog-admin/js/dropdown-new.js?v=20251123-new"></script>
     
     <!-- 代码主题选择器初始化 -->
     <script>
@@ -1729,8 +1728,8 @@
     </script>
     
     <!-- 樱花特效 -->
-    <link rel="stylesheet" href="../blog/css/sakura.css">
-    <script src="../blog/js/sakura.js"></script>
+    <link rel="stylesheet" href="/blog/css/sakura.css">
+    <script src="/blog/js/sakura.js"></script>
     <script>
         // 初始化樱花特效（后台管理专用配置）
         const sakura = new SakuraEffect({
@@ -1743,25 +1742,25 @@
     </script>
     
     <!-- 热榜API配置 -->
-    <script src="hotlist-api-config.js"></script>
-    <link rel="stylesheet" href="css/hotlist-config-modal.css">
-    <script src="js/hotlist-config-modal.js"></script>
+    <script src="/blog-admin/hotlist-api-config.js"></script>
+    <link rel="stylesheet" href="/blog-admin/css/hotlist-config-modal.css">
+    <script src="/blog-admin/js/hotlist-config-modal.js"></script>
     
     <!-- 网易云音乐导入模态框 -->
-    <link rel="stylesheet" href="css/netease-music-modal.css">
-    <script src="js/netease-music-modal.js"></script>
+    <link rel="stylesheet" href="/blog-admin/css/netease-music-modal.css">
+    <script src="/blog-admin/js/netease-music-modal.js"></script>
     
     <!-- 微博热搜 - 自动滚动版本 -->
-    <script src="js/hot-search-smooth.js?v=20251120-auto-scroll"></script>
+    <script src="/blog-admin/js/hot-search-smooth.js?v=20251120-auto-scroll"></script>
     
     <!-- 重要事项管理 -->
-    <script src="js/events-manager.js?v=20251120"></script>
+    <script src="/blog-admin/js/events-manager.js?v=20251120"></script>
     
     <!-- 应用管理 -->
-    <script src="js/apps-manager.js"></script>
+    <script src="/blog-admin/js/apps-manager.js"></script>
     
     <!-- 最近文章和最新评论丝滑滚动 -->
-    <script src="js/recent-smooth-scroll.js?v=20251120"></script>
+    <script src="/blog-admin/js/recent-smooth-scroll.js?v=20251120"></script>
 
     <!-- 修改密码模态框 -->
     <div id="changePasswordModal" class="modal-overlay" style="display: none;">

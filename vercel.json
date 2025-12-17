@@ -10,10 +10,6 @@
     {
       "source": "/admin",
       "destination": "/blog-admin/index.html"
-    },
-    {
-      "source": "/admin/:path*",
-      "destination": "/blog-admin/:path*"
     }
   ],
   "headers": [
