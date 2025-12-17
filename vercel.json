@@ -2,14 +2,16 @@
   "outputDirectory": ".",
   "cleanUrls": true,
   "trailingSlash": false,
-  "rewrites": [
+  "redirects": [
     {
       "source": "/",
-      "destination": "/blog/index.html"
+      "destination": "/blog/",
+      "permanent": false
     },
     {
       "source": "/admin",
-      "destination": "/blog-admin/index.html"
+      "destination": "/blog-admin/",
+      "permanent": false
     }
   ],
   "headers": [
