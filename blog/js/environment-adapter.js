@@ -92,7 +92,7 @@ class EnvironmentAdapter {
         }
     }
     
-    // 静态环境：直接读取JSON文件 (保持不变)
+    // 静态环境：直接读取JSON文件 (恢复昨天的工作版本)
     async getDataFromJSON(resource) {
         try {
             const currentPath = window.location.pathname;
@@ -100,10 +100,8 @@ class EnvironmentAdapter {
             
             // 如果是GitHub Pages环境
             if (window.location.hostname.includes('github.io')) {
-                // 获取仓库名称并使用绝对路径
-                const pathParts = currentPath.split('/').filter(p => p);
-                const repoName = pathParts.length > 0 ? pathParts[0] : '';
-                url = `/${repoName}/data/${resource}.json`;
+                // 使用绝对路径，直接指向data目录
+                url = `/data/${resource}.json`;
             } else {
                 // 本地环境使用相对路径
                 let basePath = '../data';
@@ -119,6 +117,7 @@ class EnvironmentAdapter {
                 url = `${basePath}/${resource}.json`;
             }
             
+            console.log(`🔍 尝试加载${resource}:`, url);
             const response = await fetch(url);
             if (!response.ok) {
                 throw new Error(`JSON file error: ${response.status}`);
