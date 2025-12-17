@@ -19,7 +19,7 @@ class EnvironmentAdapter {
     detectEnvironment() {
         const hostname = window.location.hostname;
         
-        if (hostname.includes('vercel.app') || hostname.includes('web3v.vip')) {
+        if (hostname.includes('vercel.app') || hostname.includes('web3v.vip') || hostname.includes('slxhdjy.top')) {
             return 'vercel';
         } else if (hostname.includes('github.io')) {
             return 'github-pages';
