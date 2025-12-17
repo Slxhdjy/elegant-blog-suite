@@ -2,12 +2,16 @@
   "outputDirectory": ".",
   "rewrites": [
     {
-      "source": "/",
-      "destination": "/blog/index.html"
+      "source": "/admin/(.*)",
+      "destination": "/blog-admin/$1"
     },
     {
       "source": "/admin",
       "destination": "/blog-admin/index.html"
+    },
+    {
+      "source": "/",
+      "destination": "/blog/index.html"
     },
     {
       "source": "/blog",
@@ -68,18 +72,6 @@
     {
       "source": "/images/(.*)",
       "destination": "/blog/images/$1"
-    },
-    {
-      "source": "/blog-admin/css/(.*)",
-      "destination": "/blog-admin/css/$1"
-    },
-    {
-      "source": "/blog-admin/js/(.*)",
-      "destination": "/blog-admin/js/$1"
-    },
-    {
-      "source": "/blog-admin/images/(.*)",
-      "destination": "/blog-admin/images/$1"
     },
     {
       "source": "/uploads/(.*)",
