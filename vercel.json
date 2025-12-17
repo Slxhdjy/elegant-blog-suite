@@ -1,90 +1,12 @@
 {
-  "outputDirectory": ".",
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        }
-      ]
-    },
-    {
-      "source": "/blog/css/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/blog/js/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/blog-admin/css/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/blog-admin/js/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/uploads/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/data/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600, must-revalidate"
-        }
-      ]
-    }
-  ],
   "rewrites": [
     {
       "source": "/",
       "destination": "/blog/index.html"
     },
     {
-      "source": "/blog",
-      "destination": "/blog/index.html"
-    },
-    {
       "source": "/admin",
-      "destination": "/blog-admin/login.html"
+      "destination": "/blog-admin/index.html"
     },
     {
       "source": "/apps",
@@ -98,7 +20,5 @@
       "source": "/gallery",
       "destination": "/blog/pages/gallery.html"
     }
-  ],
-  "trailingSlash": false,
-  "cleanUrls": true
+  ]
 }
