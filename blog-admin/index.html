@@ -1580,6 +1580,9 @@
         </div>
     </div>
 
+    <!-- 环境适配器 - 必须在数据适配器之前加载 -->
+    <script src="../blog/js/environment-adapter.js"></script>
+    
     <!-- 认证检查 - 必须最先加载 -->
     <script src="js/auth.js"></script>
     <script src="js/user-manager.js"></script>
@@ -1591,7 +1594,7 @@
     </script>
     
     <!-- 数据适配层 - 支持JSON文件存储 -->
-    <script src="js/data-adapter.js"></script>
+    <script src="../blog/js/data-adapter.js"></script>
     <script src="js/data-store-wrapper.js"></script>
     
     <!-- 网站描述编辑器 -->

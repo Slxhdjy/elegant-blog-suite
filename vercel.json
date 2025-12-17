@@ -78,6 +78,14 @@
       "destination": "/blog/pages/article.html"
     },
     {
+      "source": "/blog/css/(.*)",
+      "destination": "/blog/css/$1"
+    },
+    {
+      "source": "/blog/js/(.*)",
+      "destination": "/blog/js/$1"
+    },
+    {
       "source": "/css/(.*)",
       "destination": "/blog/css/$1"
     },
