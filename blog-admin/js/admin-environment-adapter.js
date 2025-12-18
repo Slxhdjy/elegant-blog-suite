@@ -89,9 +89,10 @@ class AdminEnvironmentAdapter {
             return result.success ? result.data : (resource === 'settings' ? {} : []);
         } catch (error) {
             console.error(`❌ Vercel API获取${resource}失败:`, error);
-            // 降级到JSON文件
-            console.log(`🔄 降级到JSON文件模式获取${resource}`);
-            return await this.getDataFromJSON(resource);
+            // Vercel环境下不降级，直接返回空数据并显示错误
+            console.error(`⚠️ Vercel环境下无法获取${resource}数据，请检查KV配置`);
+            this.showStaticModeNotice(`无法加载${resource}数据，请检查Vercel KV配置`);
+            return resource === 'settings' ? {} : [];
         }
     }
     
