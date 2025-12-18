@@ -12,6 +12,21 @@
     },
     "api/check-permissions.js": {
       "maxDuration": 10
+    },
+    "api/init-data.js": {
+      "maxDuration": 10
+    },
+    "api/data-integrity.js": {
+      "maxDuration": 15
+    },
+    "api/health.js": {
+      "maxDuration": 5
+    },
+    "api/settings.js": {
+      "maxDuration": 10
+    },
+    "api/articles.js": {
+      "maxDuration": 10
     }
   },
   "redirects": [

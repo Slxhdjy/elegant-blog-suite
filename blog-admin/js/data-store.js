@@ -262,10 +262,10 @@ class BlogDataStore {
             localStorage.setItem('blogData', jsonStr);
             console.log('✅ 数据保存到localStorage成功');
             
-            // 🔥 同步保存到JSON文件（如果API服务器可用）
-            this.syncToJSONFiles(data).catch(err => {
-                console.warn('⚠️ 同步到JSON文件失败（这不影响localStorage保存）:', err.message);
-            });
+            // 注释：已移除自动同步到JSON文件的逻辑，避免覆盖Vercel KV数据库
+            // this.syncToJSONFiles(data).catch(err => {
+            //     console.warn('⚠️ 同步到JSON文件失败（这不影响localStorage保存）:', err.message);
+            // });
             
             // 保存成功后，如果数据较大，给出警告
             if (sizeInMB > 4) {
@@ -307,10 +307,10 @@ class BlogDataStore {
                     localStorage.setItem('blogData', cleanedJsonStr);
                     console.log(`✅ 清理后保存成功，清理了 ${cleanedCount} 张图片，新大小: ${cleanedSizeMB} MB`);
                     
-                    // 同步到JSON文件
-                    this.syncToJSONFiles(data).catch(err => {
-                        console.warn('⚠️ 同步到JSON文件失败:', err.message);
-                    });
+                    // 注释：已移除自动同步到JSON文件的逻辑，避免覆盖Vercel KV数据库
+                    // this.syncToJSONFiles(data).catch(err => {
+                    //     console.warn('⚠️ 同步到JSON文件失败:', err.message);
+                    // });
                     
                     // 提示用户
                     alert(`保存成功！\n\n已清理 ${cleanedCount} 张Base64图片\n数据大小从 ${sizeInMB} MB 减少到 ${cleanedSizeMB} MB\n\n建议使用图床服务上传图片`);

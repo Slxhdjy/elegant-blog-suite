@@ -121,20 +121,41 @@ export default async function handler(req, res) {
           const items = await kv.get(resource) || [];
           console.log(`当前${resource}数据:`, items.length, '条');
           
-          // 生成新ID
-          let maxId = 0;
-          items.forEach(item => {
-            const itemId = parseInt(item.id) || 0;
-            if (itemId > maxId) {
-              maxId = itemId;
+          // 生成新ID - 改进版，避免ID冲突
+          let newId;
+          if (resource === 'users') {
+            // 用户使用特殊格式
+            newId = `user_${Date.now()}`;
+          } else {
+            // 其他资源使用数字ID，但确保唯一性
+            let maxId = 0;
+            items.forEach(item => {
+              const itemId = parseInt(item.id) || 0;
+              if (itemId > maxId) {
+                maxId = itemId;
+              }
+            });
+            newId = String(maxId + 1);
+            
+            // 双重检查确保ID唯一
+            while (items.some(item => String(item.id) === newId)) {
+              newId = String(parseInt(newId) + 1);
             }
-          });
-          const newId = String(maxId + 1);
+          }
           console.log('生成新ID:', newId);
+          
+          // 数据验证和清理
+          const validatedData = validateAndCleanData(resource, requestBody);
+          if (!validatedData.valid) {
+            return res.status(400).json({ 
+              success: false, 
+              error: `数据验证失败: ${validatedData.error}` 
+            });
+          }
           
           const newItem = {
             id: newId,
-            ...requestBody,
+            ...validatedData.data,
             createdAt: new Date().toISOString()
           };
           
@@ -163,10 +184,19 @@ export default async function handler(req, res) {
         console.log('查找项目索引:', index, '目标ID:', id);
         
         if (index !== -1) {
+          // 数据验证和清理
+          const validatedData = validateAndCleanData(resource, requestBody);
+          if (!validatedData.valid) {
+            return res.status(400).json({ 
+              success: false, 
+              error: `数据验证失败: ${validatedData.error}` 
+            });
+          }
+          
           const originalItem = items[index];
           items[index] = {
             ...originalItem,
-            ...requestBody,
+            ...validatedData.data,
             updatedAt: new Date().toISOString()
           };
           
@@ -209,5 +239,128 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error(`${resource} API error:`, error);
     return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// 数据验证和清理函数
+function validateAndCleanData(resource, data) {
+  try {
+    const cleaned = { ...data };
+    
+    // 通用验证
+    if (typeof cleaned !== 'object' || cleaned === null) {
+      return { valid: false, error: '数据必须是对象' };
+    }
+    
+    // 资源特定验证
+    switch (resource) {
+      case 'articles':
+        if (!cleaned.title || typeof cleaned.title !== 'string') {
+          return { valid: false, error: '文章标题不能为空' };
+        }
+        if (!cleaned.content || typeof cleaned.content !== 'string') {
+          return { valid: false, error: '文章内容不能为空' };
+        }
+        // 设置默认值
+        cleaned.views = cleaned.views || 0;
+        cleaned.likes = cleaned.likes || 0;
+        cleaned.status = cleaned.status || 'draft';
+        cleaned.publishDate = cleaned.publishDate || new Date().toISOString().split('T')[0];
+        break;
+        
+      case 'categories':
+      case 'tags':
+        if (!cleaned.name || typeof cleaned.name !== 'string') {
+          return { valid: false, error: '名称不能为空' };
+        }
+        cleaned.count = cleaned.count || 0;
+        break;
+        
+      case 'users':
+        if (!cleaned.username || typeof cleaned.username !== 'string') {
+          return { valid: false, error: '用户名不能为空' };
+        }
+        if (!cleaned.password || typeof cleaned.password !== 'string') {
+          return { valid: false, error: '密码不能为空' };
+        }
+        cleaned.role = cleaned.role || 'viewer';
+        cleaned.status = cleaned.status || 'active';
+        break;
+        
+      case 'comments':
+        if (!cleaned.content || typeof cleaned.content !== 'string') {
+          return { valid: false, error: '评论内容不能为空' };
+        }
+        cleaned.status = cleaned.status || 'pending';
+        cleaned.likes = cleaned.likes || 0;
+        break;
+        
+      case 'guestbook':
+        if (!cleaned.content || typeof cleaned.content !== 'string') {
+          return { valid: false, error: '留言内容不能为空' };
+        }
+        cleaned.likes = cleaned.likes || 0;
+        cleaned.isTop = cleaned.isTop || false;
+        break;
+        
+      case 'images':
+        if (!cleaned.filename || typeof cleaned.filename !== 'string') {
+          return { valid: false, error: '文件名不能为空' };
+        }
+        if (!cleaned.url || typeof cleaned.url !== 'string') {
+          return { valid: false, error: '图片URL不能为空' };
+        }
+        break;
+        
+      case 'music':
+        if (!cleaned.title || typeof cleaned.title !== 'string') {
+          return { valid: false, error: '音乐标题不能为空' };
+        }
+        break;
+        
+      case 'videos':
+        if (!cleaned.title || typeof cleaned.title !== 'string') {
+          return { valid: false, error: '视频标题不能为空' };
+        }
+        break;
+        
+      case 'links':
+        if (!cleaned.name || typeof cleaned.name !== 'string') {
+          return { valid: false, error: '链接名称不能为空' };
+        }
+        if (!cleaned.url || typeof cleaned.url !== 'string') {
+          return { valid: false, error: '链接URL不能为空' };
+        }
+        break;
+        
+      case 'apps':
+        if (!cleaned.name || typeof cleaned.name !== 'string') {
+          return { valid: false, error: '应用名称不能为空' };
+        }
+        cleaned.status = cleaned.status || 'enabled';
+        cleaned.order = cleaned.order || 0;
+        break;
+        
+      case 'events':
+        if (!cleaned.title || typeof cleaned.title !== 'string') {
+          return { valid: false, error: '事件标题不能为空' };
+        }
+        break;
+    }
+    
+    // 清理危险字符
+    Object.keys(cleaned).forEach(key => {
+      if (typeof cleaned[key] === 'string') {
+        // 基本的XSS防护
+        cleaned[key] = cleaned[key]
+          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+          .replace(/javascript:/gi, '')
+          .replace(/on\w+\s*=/gi, '');
+      }
+    });
+    
+    return { valid: true, data: cleaned };
+  } catch (error) {
+    return { valid: false, error: error.message };
   }
 }

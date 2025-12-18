@@ -2583,10 +2583,11 @@ async function toggleDataSourceMode() {
             return;
         }
         
-        // 询问是否同步数据
-        if (confirm('切换到API模式后，建议先同步数据到JSON文件。\n\n是否现在同步？')) {
-            await syncDataToJson();
-        }
+        // 注释：已移除自动同步功能，避免覆盖Vercel KV数据库
+        // if (confirm('切换到API模式后，建议先同步数据到JSON文件。\n\n是否现在同步？')) {
+        //     await syncDataToJson();
+        // }
+        showNotification('✅ 已切换到API模式', 'success');
     }
     
     // 保存设置
@@ -2680,8 +2681,9 @@ async function checkApiServerStatus(silent = false) {
     }
 }
 
+// 注释：已禁用同步数据到JSON功能，避免覆盖Vercel KV数据库
 // 同步数据到JSON
-async function syncDataToJson() {
+async function syncDataToJson_DISABLED() {
     // 检查权限
     if (!window.checkPermission('settings', 'update')) {
         return;
