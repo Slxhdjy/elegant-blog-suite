@@ -189,6 +189,63 @@ class EnvironmentAdapter {
         }
     }
     
+    // 更新单个项目
+    async updateItem(resource, id, updates) {
+        switch (this.environment) {
+            case 'vercel':
+                return await this.updateItemToVercel(resource, id, updates);
+            case 'local':
+                return await this.updateItemToLocal(resource, id, updates);
+            case 'github-pages':
+            case 'static':
+            default:
+                this.showStaticModeNotice('更新功能在静态部署中不可用');
+                return { success: false, message: '静态模式不支持更新' };
+        }
+    }
+    
+    // Vercel环境：更新单个项目
+    async updateItemToVercel(resource, id, updates) {
+        try {
+            const response = await fetch(`${this.apiBase}/${resource}/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Vercel update error: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error(`❌ Vercel更新${resource}失败:`, error);
+            return { success: false, message: error.message };
+        }
+    }
+    
+    // 本地环境：更新单个项目
+    async updateItemToLocal(resource, id, updates) {
+        try {
+            const response = await fetch(`${this.apiBase}/${resource}/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Local update error: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error(`❌ 本地更新${resource}失败:`, error);
+            return { success: false, message: error.message };
+        }
+    }
+    
     // 显示静态模式提示
     showStaticModeNotice(message) {
         const notice = document.createElement('div');

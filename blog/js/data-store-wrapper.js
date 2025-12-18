@@ -194,14 +194,19 @@ class BlogDataStoreWrapper {
 
     async getCommentsByArticle(articleId) {
         const allComments = await this.adapter.getComments();
-        return allComments.filter(c => c.articleId === parseInt(articleId) && !c.parentId)
-            .sort((a, b) => new Date(b.time) - new Date(a.time)); // 按时间倒序
+        return allComments.filter(c => 
+            c.articleId === parseInt(articleId) && 
+            c.status === 'approved' &&
+            !c.parentId
+        ).sort((a, b) => new Date(b.time) - new Date(a.time)); // 按时间倒序
     }
 
     async getRepliesByComment(commentId) {
         const allComments = await this.adapter.getComments();
-        return allComments.filter(c => c.parentId === parseInt(commentId))
-            .sort((a, b) => new Date(a.time) - new Date(b.time)); // 回复按时间正序
+        return allComments.filter(c => 
+            c.parentId === parseInt(commentId) && 
+            c.status === 'approved'
+        ).sort((a, b) => new Date(a.time) - new Date(b.time)); // 回复按时间正序
     }
 
     addComment(comment) {

@@ -492,14 +492,32 @@ class DataAdapter {
     }
 
     async updateComment(id, updates) {
-        const comments = await this.getComments();
-        const index = comments.findIndex(comment => String(comment.id) === String(id));
-        if (index !== -1) {
-            comments[index] = { ...comments[index], ...updates };
-            await this.saveData('comments', comments);
-            return comments[index];
+        try {
+            // 在Vercel环境下使用单项更新API
+            if (this.environmentAdapter.environment === 'vercel') {
+                const result = await this.environmentAdapter.updateItem('comments', id, updates);
+                if (result.success) {
+                    console.log('✅ 评论更新成功 (Vercel):', result.data);
+                    return result.data;
+                } else {
+                    throw new Error(result.message || '更新失败');
+                }
+            } else {
+                // 其他环境使用原有逻辑
+                const comments = await this.getComments();
+                const index = comments.findIndex(comment => String(comment.id) === String(id));
+                if (index !== -1) {
+                    comments[index] = { ...comments[index], ...updates };
+                    await this.saveData('comments', comments);
+                    console.log('✅ 评论更新成功 (本地):', comments[index]);
+                    return comments[index];
+                }
+                return null;
+            }
+        } catch (error) {
+            console.error('❌ 更新评论失败:', error);
+            throw error;
         }
-        return null;
     }
 
     async deleteComment(id) {
