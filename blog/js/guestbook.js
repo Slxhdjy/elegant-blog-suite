@@ -247,7 +247,7 @@ function renderReply(reply) {
 }
 
 // 提交留言
-function submitGuestbook() {
+async function submitGuestbook() {
     const name = document.getElementById('guestName').value.trim();
     const email = document.getElementById('guestEmail').value.trim();
     const content = document.getElementById('guestMessage').value.trim();
@@ -275,17 +275,22 @@ function submitGuestbook() {
         content: content
     };
     
-    window.blogDataStore.addGuestbookMessage(message);
-    
-    // 清空表单
-    document.getElementById('guestName').value = '';
-    document.getElementById('guestEmail').value = '';
-    document.getElementById('guestMessage').value = '';
-    
-    // 重新加载留言列表
-    loadGuestbookMessages();
-    
-    showNotification('留言发表成功！', 'success');
+    try {
+        await window.blogDataStore.addGuestbookMessage(message);
+        
+        // 清空表单
+        document.getElementById('guestName').value = '';
+        document.getElementById('guestEmail').value = '';
+        document.getElementById('guestMessage').value = '';
+        
+        // 重新加载留言列表
+        await loadGuestbookMessages();
+        
+        showNotification('留言发表成功！', 'success');
+    } catch (error) {
+        console.error('提交留言失败:', error);
+        showNotification('留言发表失败，请稍后重试', 'error');
+    }
     
     // 滚动到留言列表
     document.getElementById('guestbookList').scrollIntoView({ behavior: 'smooth' });
@@ -317,7 +322,7 @@ function hideReplyForm(messageId) {
 }
 
 // 提交回复
-function submitReply(parentId) {
+async function submitReply(parentId) {
     const name = document.getElementById(`replyName${parentId}`).value.trim();
     const content = document.getElementById(`replyContent${parentId}`).value.trim();
     
@@ -340,15 +345,20 @@ function submitReply(parentId) {
         parentId: parentId // 父留言ID
     };
     
-    window.blogDataStore.addGuestbookMessage(reply);
-    
-    // 隐藏表单
-    hideReplyForm(parentId);
-    
-    // 重新加载留言列表
-    loadGuestbookMessages();
-    
-    showNotification('回复发表成功！', 'success');
+    try {
+        await window.blogDataStore.addGuestbookMessage(reply);
+        
+        // 隐藏表单
+        hideReplyForm(parentId);
+        
+        // 重新加载留言列表
+        await loadGuestbookMessages();
+        
+        showNotification('回复发表成功！', 'success');
+    } catch (error) {
+        console.error('提交回复失败:', error);
+        showNotification('回复发表失败，请稍后重试', 'error');
+    }
 }
 
 // 留言点赞（点一次+1，再点一次-1，互斥差评）
