@@ -613,10 +613,13 @@ async function saveCategory() {
             description: descInput.value.trim()
         };
         
+        // 显示加载状态
+        showNotification('正在保存分类...', 'info');
+        
         // 使用数据适配器保存
         const result = await window.dataAdapter.addCategory(categoryData);
         
-        if (result) {
+        if (result && result.id) {
             showNotification('分类保存成功', 'success');
             closeModal();
             // 刷新分类列表（如果在分类页面）
@@ -625,11 +628,15 @@ async function saveCategory() {
                 await loadCategoriesList();
             }
         } else {
-            showNotification('分类保存失败', 'error');
+            const errorMsg = result && result.message ? result.message : '分类保存失败';
+            showNotification(errorMsg, 'error');
         }
     } catch (error) {
         console.error('保存分类失败:', error);
-        showNotification('分类保存失败: ' + error.message, 'error');
+        const errorMsg = error.message.includes('KV数据库') ? 
+            'Vercel数据库配置问题，请联系管理员' : 
+            '分类保存失败: ' + error.message;
+        showNotification(errorMsg, 'error');
     }
 }
 
@@ -648,10 +655,13 @@ async function saveTag() {
             name: nameInput.value.trim()
         };
         
+        // 显示加载状态
+        showNotification('正在保存标签...', 'info');
+        
         // 使用数据适配器保存
         const result = await window.dataAdapter.addTag(tagData);
         
-        if (result) {
+        if (result && result.id) {
             showNotification('标签保存成功', 'success');
             closeModal();
             // 刷新标签列表（如果在标签页面）
@@ -660,11 +670,15 @@ async function saveTag() {
                 await loadTagsList();
             }
         } else {
-            showNotification('标签保存失败', 'error');
+            const errorMsg = result && result.message ? result.message : '标签保存失败';
+            showNotification(errorMsg, 'error');
         }
     } catch (error) {
         console.error('保存标签失败:', error);
-        showNotification('标签保存失败: ' + error.message, 'error');
+        const errorMsg = error.message.includes('KV数据库') ? 
+            'Vercel数据库配置问题，请联系管理员' : 
+            '标签保存失败: ' + error.message;
+        showNotification(errorMsg, 'error');
     }
 }
 

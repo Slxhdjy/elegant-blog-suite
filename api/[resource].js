@@ -14,6 +14,35 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
+  // 确保请求体被正确解析
+  let requestBody = req.body;
+  
+  // 如果没有请求体但需要请求体的操作，返回错误
+  if ((method === 'POST' || method === 'PUT') && !requestBody) {
+    console.error('缺少请求体');
+    return res.status(400).json({ success: false, error: '缺少请求体数据' });
+  }
+  
+  if (typeof requestBody === 'string') {
+    try {
+      requestBody = JSON.parse(requestBody);
+    } catch (error) {
+      console.error('JSON解析错误:', error);
+      return res.status(400).json({ success: false, error: '无效的JSON格式' });
+    }
+  }
+  
+  // 记录请求详情用于调试
+  console.log('API请求详情:', {
+    method,
+    resource,
+    id,
+    url: req.url,
+    hasBody: !!requestBody,
+    bodyType: typeof requestBody,
+    hasKvEnv: !!process.env.KV_REST_API_URL
+  });
+
   // 验证资源类型
   const allowedResources = [
     'articles', 'categories', 'tags', 'comments', 'guestbook',
@@ -23,6 +52,19 @@ export default async function handler(req, res) {
 
   if (!allowedResources.includes(resource)) {
     return res.status(400).json({ success: false, error: '不支持的资源类型' });
+  }
+
+  // 检查KV环境变量
+  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+    console.error('KV环境变量未配置');
+    return res.status(500).json({ 
+      success: false, 
+      error: 'KV数据库未配置，请检查环境变量',
+      details: {
+        hasUrl: !!process.env.KV_REST_API_URL,
+        hasToken: !!process.env.KV_REST_API_TOKEN
+      }
+    });
   }
 
   try {
@@ -52,12 +94,12 @@ export default async function handler(req, res) {
         }
 
       case 'POST':
-        console.log('POST请求详情:', { url: req.url, resource, body: req.body });
+        console.log('POST请求详情:', { url: req.url, resource, body: requestBody });
         
         if (req.url.includes('/batch')) {
           // 批量导入
           console.log('执行批量导入操作');
-          const data = req.body;
+          const data = requestBody;
           await kv.set(resource, data);
           const count = Array.isArray(data) ? data.length : 1;
           return res.json({ 
@@ -72,8 +114,8 @@ export default async function handler(req, res) {
           if (resource === 'settings') {
             // settings直接更新
             console.log('更新settings');
-            await kv.set('settings', req.body);
-            return res.json({ success: true, data: req.body });
+            await kv.set('settings', requestBody);
+            return res.json({ success: true, data: requestBody });
           }
           
           const items = await kv.get(resource) || [];
@@ -92,7 +134,7 @@ export default async function handler(req, res) {
           
           const newItem = {
             id: newId,
-            ...req.body,
+            ...requestBody,
             createdAt: new Date().toISOString()
           };
           
@@ -104,13 +146,13 @@ export default async function handler(req, res) {
         }
 
       case 'PUT':
-        console.log('PUT请求详情:', { resource, id, body: req.body });
+        console.log('PUT请求详情:', { resource, id, body: requestBody });
         
         if (resource === 'settings') {
           // settings直接更新
           console.log('更新settings');
-          await kv.set('settings', req.body);
-          return res.json({ success: true, data: req.body });
+          await kv.set('settings', requestBody);
+          return res.json({ success: true, data: requestBody });
         }
         
         // 更新项目
@@ -124,7 +166,7 @@ export default async function handler(req, res) {
           const originalItem = items[index];
           items[index] = {
             ...originalItem,
-            ...req.body,
+            ...requestBody,
             updatedAt: new Date().toISOString()
           };
           

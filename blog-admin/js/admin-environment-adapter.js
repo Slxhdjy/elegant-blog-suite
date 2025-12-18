@@ -240,8 +240,22 @@ class AdminEnvironmentAdapter {
             
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error(`❌ 创建错误响应:`, errorText);
-                throw new Error(`Create ${resource} error: ${response.status} - ${errorText}`);
+                console.error(`❌ 创建错误响应:`, {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries(response.headers.entries()),
+                    body: errorText
+                });
+                
+                // 尝试解析错误响应
+                let errorData;
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch (e) {
+                    errorData = { message: errorText };
+                }
+                
+                throw new Error(`Create ${resource} error: ${response.status} - ${errorData.error || errorData.message || errorText}`);
             }
             
             const result = await response.json();
@@ -249,7 +263,16 @@ class AdminEnvironmentAdapter {
             return result;
         } catch (error) {
             console.error(`❌ 创建${resource}失败:`, error);
-            return { success: false, message: error.message };
+            
+            // 显示用户友好的错误信息
+            let userMessage = error.message;
+            if (error.message.includes('KV数据库未配置')) {
+                userMessage = 'Vercel KV数据库未配置，请检查环境变量';
+            } else if (error.message.includes('缺少请求体')) {
+                userMessage = '数据格式错误，请重试';
+            }
+            
+            return { success: false, message: userMessage };
         }
     }
     
@@ -280,7 +303,13 @@ class AdminEnvironmentAdapter {
             return result;
         } catch (error) {
             console.error(`❌ 更新${resource}失败:`, error);
-            return { success: false, message: error.message };
+            
+            let userMessage = error.message;
+            if (error.message.includes('KV数据库未配置')) {
+                userMessage = 'Vercel KV数据库未配置，请检查环境变量';
+            }
+            
+            return { success: false, message: userMessage };
         }
     }
     
@@ -309,7 +338,13 @@ class AdminEnvironmentAdapter {
             return result;
         } catch (error) {
             console.error(`❌ 删除${resource}失败:`, error);
-            return { success: false, message: error.message };
+            
+            let userMessage = error.message;
+            if (error.message.includes('KV数据库未配置')) {
+                userMessage = 'Vercel KV数据库未配置，请检查环境变量';
+            }
+            
+            return { success: false, message: userMessage };
         }
     }
     

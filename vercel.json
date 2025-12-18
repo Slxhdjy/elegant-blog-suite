@@ -1,5 +1,10 @@
 {
   "outputDirectory": ".",
+  "functions": {
+    "api/[resource].js": {
+      "maxDuration": 10
+    }
+  },
   "redirects": [
     {
       "source": "/",
