@@ -264,6 +264,74 @@ class DataAdapter {
     }
 
     async addGuestbookMessage(message) {
+        try {
+            const messages = await this.getData('guestbook');
+            
+            // 生成新ID
+            const newId = messages.length > 0 
+                ? Math.max(...messages.map(m => m.id || 0)) + 1 
+                : 1;
+            
+            // 添加ID和时间戳
+            const newMessage = {
+                id: newId,
+                ...message,
+                time: message.time || new Date().toISOString(),
+                likes: 0,
+                dislikes: 0
+            };
+            
+            messages.push(newMessage);
+            await this.saveData('guestbook', messages);
+            
+            console.log('✅ 留言添加成功:', newMessage);
+            return newMessage;
+        } catch (error) {
+            console.error('❌ 添加留言失败:', error);
+            throw error;
+        }
+    }
+
+    async updateGuestbookMessage(id, updates) {
+        try {
+            const messages = await this.getData('guestbook');
+            const index = messages.findIndex(m => m.id === parseInt(id));
+            
+            if (index !== -1) {
+                messages[index] = { ...messages[index], ...updates };
+                await this.saveData('guestbook', messages);
+                console.log('✅ 留言更新成功:', messages[index]);
+                return messages[index];
+            }
+            
+            console.warn('⚠️ 未找到留言:', id);
+            return null;
+        } catch (error) {
+            console.error('❌ 更新留言失败:', error);
+            throw error;
+        }
+    }
+
+    async deleteGuestbookMessage(id) {
+        try {
+            const messages = await this.getData('guestbook');
+            const filteredMessages = messages.filter(m => m.id !== parseInt(id));
+            
+            if (filteredMessages.length < messages.length) {
+                await this.saveData('guestbook', filteredMessages);
+                console.log('✅ 留言删除成功:', id);
+                return { success: true };
+            }
+            
+            console.warn('⚠️ 未找到留言:', id);
+            return { success: false };
+        } catch (error) {
+            console.error('❌ 删除留言失败:', error);
+            throw error;
+        }
+    }
+
+    async addGuestbookMessage(message) {
         console.warn('⚠️ 前台只读模式，无法添加留言');
         return null;
     }

@@ -303,25 +303,7 @@ class BlogDataStoreWrapper {
     }
 
     async addGuestbookMessage(message) {
-        try {
-            const response = await fetch('http://localhost:3001/api/guestbook', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(message)
-            });
-            const result = await response.json();
-            if (result.success) {
-                console.log('✅ 留言添加成功');
-                // 刷新页面以显示新留言
-                setTimeout(() => location.reload(), 500);
-                return result.data;
-            }
-            throw new Error(result.message || '添加留言失败');
-        } catch (error) {
-            console.error('❌ 添加留言失败:', error);
-            alert('添加留言失败，请确保服务器正在运行');
-            return null;
-        }
+        return this.adapter.addGuestbookMessage(message);
     }
 
     updateGuestbookMessage(id, updates) {
