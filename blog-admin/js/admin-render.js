@@ -1913,6 +1913,12 @@ async function saveSettings() {
         const frontendTheme = document.querySelector('input[name="frontendTheme"]:checked')?.value || 'ocean';
         const backendTheme = document.querySelector('input[name="backendTheme"]:checked')?.value || 'ocean';
         
+        console.log('🎨 保存主题设置:', {
+            enableThemeSystem,
+            frontendTheme,
+            backendTheme
+        });
+        
         // 获取数据源模式
         const useApiMode = document.getElementById('useApiMode')?.checked || false;
         
@@ -1920,8 +1926,8 @@ async function saveSettings() {
         const enableFrontendVideoBackground = document.getElementById('enableFrontendVideoBackground')?.checked !== false;
         const enableBackendVideoBackground = document.getElementById('enableBackendVideoBackground')?.checked !== false;
         
-        // 保存设置
-        await window.blogDataStore.updateSettings({
+        // 构建更新数据
+        const updateData = {
             avatar: avatarUrl,
             siteName: siteName,
             siteDescription: siteDescription,
@@ -1931,10 +1937,18 @@ async function saveSettings() {
             enableThemeSystem: enableThemeSystem,
             frontendTheme: frontendTheme,
             backendTheme: backendTheme,
+            adminTheme: backendTheme, // 兼容字段，保持一致
             useApiMode: useApiMode,
             enableFrontendVideoBackground: enableFrontendVideoBackground,
             enableBackendVideoBackground: enableBackendVideoBackground
-        });
+        };
+        
+        console.log('💾 准备保存的设置数据:', updateData);
+        
+        // 保存设置
+        const result = await window.blogDataStore.updateSettings(updateData);
+        
+        console.log('✅ 设置保存结果:', result);
         
         console.log('✅ 设置已保存到数据源');
         

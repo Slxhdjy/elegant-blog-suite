@@ -28,15 +28,21 @@ class DataAdapter {
         this.apiChecked = false;
         this.apiAvailable = false;
         
-        // 检查用户配置
+        // 检查用户配置和环境
         const userConfig = localStorage.getItem('use_json_mode');
         
-        // 默认使用JSON文件模式（直接读取）
-        if (userConfig === 'false') {
+        // 在Vercel环境下，强制使用环境适配器
+        if (window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
+            this.useJSON = false; // 不使用JSON文件直读
+            this.useEnvironmentAdapter = true;
+            console.log('🌐 Vercel环境：使用环境适配器');
+        } else if (userConfig === 'false') {
             this.useJSON = false;
+            this.useEnvironmentAdapter = false;
             console.log('💾 用户设置：使用localStorage存储');
         } else {
             this.useJSON = true;
+            this.useEnvironmentAdapter = false;
             console.log('📁 使用JSON文件存储（直接读取模式）');
         }
         
@@ -88,6 +94,12 @@ class DataAdapter {
 
     // 统一的数据获取方法
     async getData(resource) {
+        // 优先使用环境适配器
+        if (this.useEnvironmentAdapter && window.environmentAdapter) {
+            console.log(`🌐 使用环境适配器获取${resource}`);
+            return await window.environmentAdapter.getData(resource);
+        }
+        
         if (this.useJSON) {
             // 直接从JSON文件读取
             try {
@@ -143,7 +155,9 @@ class DataAdapter {
     
     // 单项CRUD操作方法
     async createItem(resource, item) {
-        if (window.environmentAdapter && window.environmentAdapter.supportsWrite) {
+        // 优先使用环境适配器
+        if (this.useEnvironmentAdapter && window.environmentAdapter && window.environmentAdapter.supportsWrite) {
+            console.log(`🌐 使用环境适配器创建${resource}`);
             return await window.environmentAdapter.createItem(resource, item);
         }
         
@@ -161,7 +175,9 @@ class DataAdapter {
     }
     
     async updateItem(resource, id, updates) {
-        if (window.environmentAdapter && window.environmentAdapter.supportsWrite) {
+        // 优先使用环境适配器
+        if (this.useEnvironmentAdapter && window.environmentAdapter && window.environmentAdapter.supportsWrite) {
+            console.log(`🌐 使用环境适配器更新${resource}`);
             return await window.environmentAdapter.updateItem(resource, id, updates);
         }
         
@@ -181,7 +197,9 @@ class DataAdapter {
     }
     
     async deleteItem(resource, id) {
-        if (window.environmentAdapter && window.environmentAdapter.supportsWrite) {
+        // 优先使用环境适配器
+        if (this.useEnvironmentAdapter && window.environmentAdapter && window.environmentAdapter.supportsWrite) {
+            console.log(`🌐 使用环境适配器删除${resource}`);
             return await window.environmentAdapter.deleteItem(resource, id);
         }
         
@@ -194,6 +212,12 @@ class DataAdapter {
 
     // 统一的数据保存方法
     async saveData(resource, data) {
+        // 优先使用环境适配器
+        if (this.useEnvironmentAdapter && window.environmentAdapter) {
+            console.log(`🌐 使用环境适配器保存${resource}`);
+            return await window.environmentAdapter.saveData(resource, data);
+        }
+        
         if (this.useJSON) {
             // 保存到JSON文件（需要API服务器）
             try {
