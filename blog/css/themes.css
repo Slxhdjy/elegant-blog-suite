@@ -33,23 +33,23 @@
     --gradient-primary: linear-gradient(135deg, #81c4e8 0%, #5a8ca8 100%);
     --gradient-secondary: linear-gradient(135deg, #ff9eb8 0%, #f48fb1 100%);
     
-    /* 导航栏变量 */
-    --nav-bg: rgba(40, 45, 55, 0.7);
-    --nav-border: rgba(255, 255, 255, 0.08);
+    /* 导航栏变量 - 蓝色海洋主题 */
+    --nav-bg: rgba(129, 196, 232, 0.95);
+    --nav-border: rgba(90, 140, 168, 0.3);
     --nav-text: #ffffff;
-    --nav-text-secondary: rgba(255, 255, 255, 0.6);
-    --nav-text-hover: rgba(255, 255, 255, 0.9);
-    --nav-track-bg: rgba(255, 255, 255, 0.12);
-    --nav-track-border: rgba(255, 255, 255, 0.18);
-    --nav-indicator-bg: rgba(255, 255, 255, 0.25);
-    --nav-indicator-glow: rgba(255, 255, 255, 0.2);
-    --nav-search-bg: rgba(255, 255, 255, 0.1);
-    --nav-search-border: rgba(255, 255, 255, 0.2);
-    --nav-search-focus-bg: rgba(255, 255, 255, 0.15);
-    --nav-search-focus-border: rgba(255, 255, 255, 0.4);
-    --nav-placeholder: rgba(255, 255, 255, 0.5);
-    --nav-icon-color: rgba(255, 255, 255, 0.6);
-    --nav-avatar-border: rgba(255, 255, 255, 0.3);
+    --nav-text-secondary: rgba(255, 255, 255, 0.8);
+    --nav-text-hover: #ffffff;
+    --nav-track-bg: rgba(255, 255, 255, 0.15);
+    --nav-track-border: rgba(255, 255, 255, 0.25);
+    --nav-indicator-bg: rgba(255, 255, 255, 0.3);
+    --nav-indicator-glow: rgba(129, 196, 232, 0.4);
+    --nav-search-bg: rgba(255, 255, 255, 0.15);
+    --nav-search-border: rgba(255, 255, 255, 0.25);
+    --nav-search-focus-bg: rgba(255, 255, 255, 0.2);
+    --nav-search-focus-border: rgba(255, 255, 255, 0.5);
+    --nav-placeholder: rgba(255, 255, 255, 0.7);
+    --nav-icon-color: rgba(255, 255, 255, 0.8);
+    --nav-avatar-border: rgba(255, 255, 255, 0.4);
     --nav-avatar-hover: #ffffff;
 }
 
@@ -83,21 +83,21 @@
     --gradient-primary: linear-gradient(135deg, #ba68c8 0%, #8e5a9f 100%);
     --gradient-secondary: linear-gradient(135deg, #f06292 0%, #ec407a 100%);
     
-    /* 导航栏变量 */
-    --nav-bg: rgba(142, 90, 159, 0.7);
-    --nav-border: rgba(225, 190, 231, 0.2);
+    /* 导航栏变量 - 紫色梦幻主题 */
+    --nav-bg: rgba(186, 104, 200, 0.95);
+    --nav-border: rgba(142, 90, 159, 0.3);
     --nav-text: #ffffff;
-    --nav-text-secondary: rgba(255, 255, 255, 0.6);
-    --nav-text-hover: rgba(255, 255, 255, 0.9);
-    --nav-track-bg: rgba(255, 255, 255, 0.12);
-    --nav-track-border: rgba(255, 255, 255, 0.18);
-    --nav-indicator-bg: rgba(186, 104, 200, 0.4);
-    --nav-indicator-glow: rgba(186, 104, 200, 0.3);
-    --nav-search-bg: rgba(255, 255, 255, 0.1);
-    --nav-search-border: rgba(255, 255, 255, 0.2);
-    --nav-search-focus-bg: rgba(255, 255, 255, 0.15);
-    --nav-search-focus-border: rgba(186, 104, 200, 0.5);
-    --nav-placeholder: rgba(255, 255, 255, 0.5);
+    --nav-text-secondary: rgba(255, 255, 255, 0.8);
+    --nav-text-hover: #ffffff;
+    --nav-track-bg: rgba(255, 255, 255, 0.15);
+    --nav-track-border: rgba(255, 255, 255, 0.25);
+    --nav-indicator-bg: rgba(255, 255, 255, 0.3);
+    --nav-indicator-glow: rgba(186, 104, 200, 0.4);
+    --nav-search-bg: rgba(255, 255, 255, 0.15);
+    --nav-search-border: rgba(255, 255, 255, 0.25);
+    --nav-search-focus-bg: rgba(255, 255, 255, 0.2);
+    --nav-search-focus-border: rgba(255, 255, 255, 0.5);
+    --nav-placeholder: rgba(255, 255, 255, 0.7);
     --nav-icon-color: rgba(255, 255, 255, 0.6);
     --nav-avatar-border: rgba(186, 104, 200, 0.4);
     --nav-avatar-hover: #ba68c8;
@@ -133,24 +133,24 @@
     --gradient-primary: linear-gradient(135deg, #81c784 0%, #66a86a 100%);
     --gradient-secondary: linear-gradient(135deg, #aed581 0%, #9ccc65 100%);
     
-    /* 导航栏变量 */
-    --nav-bg: rgba(102, 168, 106, 0.7);
-    --nav-border: rgba(200, 230, 201, 0.2);
+    /* 导航栏变量 - 绿色自然主题 */
+    --nav-bg: rgba(129, 199, 132, 0.95);
+    --nav-border: rgba(102, 168, 106, 0.3);
     --nav-text: #ffffff;
-    --nav-text-secondary: rgba(255, 255, 255, 0.6);
-    --nav-text-hover: rgba(255, 255, 255, 0.9);
-    --nav-track-bg: rgba(255, 255, 255, 0.12);
-    --nav-track-border: rgba(255, 255, 255, 0.18);
-    --nav-indicator-bg: rgba(129, 199, 132, 0.4);
-    --nav-indicator-glow: rgba(129, 199, 132, 0.3);
-    --nav-search-bg: rgba(255, 255, 255, 0.1);
-    --nav-search-border: rgba(255, 255, 255, 0.2);
-    --nav-search-focus-bg: rgba(255, 255, 255, 0.15);
-    --nav-search-focus-border: rgba(129, 199, 132, 0.5);
-    --nav-placeholder: rgba(255, 255, 255, 0.5);
-    --nav-icon-color: rgba(255, 255, 255, 0.6);
-    --nav-avatar-border: rgba(129, 199, 132, 0.4);
-    --nav-avatar-hover: #81c784;
+    --nav-text-secondary: rgba(255, 255, 255, 0.8);
+    --nav-text-hover: #ffffff;
+    --nav-track-bg: rgba(255, 255, 255, 0.15);
+    --nav-track-border: rgba(255, 255, 255, 0.25);
+    --nav-indicator-bg: rgba(255, 255, 255, 0.3);
+    --nav-indicator-glow: rgba(129, 199, 132, 0.4);
+    --nav-search-bg: rgba(255, 255, 255, 0.15);
+    --nav-search-border: rgba(255, 255, 255, 0.25);
+    --nav-search-focus-bg: rgba(255, 255, 255, 0.2);
+    --nav-search-focus-border: rgba(255, 255, 255, 0.5);
+    --nav-placeholder: rgba(255, 255, 255, 0.7);
+    --nav-icon-color: rgba(255, 255, 255, 0.8);
+    --nav-avatar-border: rgba(255, 255, 255, 0.4);
+    --nav-avatar-hover: #ffffff;
 }
 
 /* 主题4：橙色活力 - 柔和版 */
@@ -183,24 +183,24 @@
     --gradient-primary: linear-gradient(135deg, #ffb74d 0%, #f57c00 100%);
     --gradient-secondary: linear-gradient(135deg, #ff8a65 0%, #ff7043 100%);
     
-    /* 导航栏变量 */
-    --nav-bg: rgba(245, 124, 0, 0.7);
-    --nav-border: rgba(255, 224, 178, 0.2);
+    /* 导航栏变量 - 橙色活力主题 */
+    --nav-bg: rgba(255, 183, 77, 0.95);
+    --nav-border: rgba(245, 124, 0, 0.3);
     --nav-text: #ffffff;
-    --nav-text-secondary: rgba(255, 255, 255, 0.6);
-    --nav-text-hover: rgba(255, 255, 255, 0.9);
-    --nav-track-bg: rgba(255, 255, 255, 0.12);
-    --nav-track-border: rgba(255, 255, 255, 0.18);
-    --nav-indicator-bg: rgba(255, 183, 77, 0.4);
-    --nav-indicator-glow: rgba(255, 183, 77, 0.3);
-    --nav-search-bg: rgba(255, 255, 255, 0.1);
-    --nav-search-border: rgba(255, 255, 255, 0.2);
-    --nav-search-focus-bg: rgba(255, 255, 255, 0.15);
-    --nav-search-focus-border: rgba(255, 183, 77, 0.5);
-    --nav-placeholder: rgba(255, 255, 255, 0.5);
-    --nav-icon-color: rgba(255, 255, 255, 0.6);
-    --nav-avatar-border: rgba(255, 183, 77, 0.4);
-    --nav-avatar-hover: #ffb74d;
+    --nav-text-secondary: rgba(255, 255, 255, 0.8);
+    --nav-text-hover: #ffffff;
+    --nav-track-bg: rgba(255, 255, 255, 0.15);
+    --nav-track-border: rgba(255, 255, 255, 0.25);
+    --nav-indicator-bg: rgba(255, 255, 255, 0.3);
+    --nav-indicator-glow: rgba(255, 183, 77, 0.4);
+    --nav-search-bg: rgba(255, 255, 255, 0.15);
+    --nav-search-border: rgba(255, 255, 255, 0.25);
+    --nav-search-focus-bg: rgba(255, 255, 255, 0.2);
+    --nav-search-focus-border: rgba(255, 255, 255, 0.5);
+    --nav-placeholder: rgba(255, 255, 255, 0.7);
+    --nav-icon-color: rgba(255, 255, 255, 0.8);
+    --nav-avatar-border: rgba(255, 255, 255, 0.4);
+    --nav-avatar-hover: #ffffff;
 }
 
 /* 主题5：深色模式 - 统一配色版 */
@@ -328,7 +328,7 @@
     /* --bg-tertiary: rgba(28, 28, 28, 0.96); */
     
     /* 文本色 - 高亮度文字，最大化可读性 */
-    /* --text-primary: rgba(255, 255, 255, 1); */
+    --text-primary: rgba(255, 255, 255, 1);
     --text-secondary: rgba(255, 255, 255, 0.85);
     --text-tertiary: rgba(255, 255, 255, 0.65);
     
@@ -388,7 +388,7 @@
     --bg-tertiary: #252a48;
     
     /* 文字 - 高对比度 */
-    /* --text-primary: #ffffff; */
+    --text-primary: #ffffff;
     --text-secondary: #b8c5d6;
     --text-tertiary: #7a8ba3;
     

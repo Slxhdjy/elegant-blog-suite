@@ -16,15 +16,16 @@ body {
     background-color: transparent !important;
 }
 
-/* 导航栏 - 强制覆盖 */
+/* 导航栏 - 使用主题导航变量 */
 .navbar,
 .site-header,
 .site-header .navbar,
 header.site-header,
 header.site-header nav,
 nav.navbar {
-    background: var(--gradient-primary) !important;
-    background-color: var(--primary-color) !important;
+    background: var(--nav-bg) !important;
+    background-color: var(--nav-bg) !important;
+    border-bottom: 1px solid var(--nav-border) !important;
 }
 
 /* 导航栏所有文字 */
@@ -33,54 +34,56 @@ nav.navbar {
 .site-header a,
 .navbar .nav-menu li a,
 header nav a {
-    color: white !important;
+    color: var(--nav-text) !important;
 }
 
-/* 导航栏悬停效果 - 与激活状态保持一致 */
+/* 导航栏悬停效果 - 使用主题变量 */
 .nav-menu a:hover,
 .navbar a:hover,
 .nav-menu li:hover a,
 .site-header a:hover,
 header nav a:hover {
     background: transparent !important;
-    border: 2px solid rgba(255,255,255,0.6) !important;
+    border: 2px solid var(--nav-text-secondary) !important;
     border-radius: 6px !important;
     transition: all 0.3s ease !important;
     padding: 6px 14px !important;
+    color: var(--nav-text-hover) !important;
 }
 
-/* 导航栏激活状态 - 半透明边框 */
+/* 导航栏激活状态 - 使用主题变量 */
 .nav-menu li a.active,
 .nav-menu .active a,
 .navbar a.active,
 .site-header a.active,
 header nav a.active,
 .nav-menu li.active a {
-    background: transparent !important;
-    border: 2px solid rgba(255,255,255,0.8) !important;
+    background: var(--nav-indicator-bg) !important;
+    border: 2px solid var(--nav-text) !important;
     border-radius: 6px !important;
     font-weight: 600 !important;
     position: relative !important;
     padding: 6px 14px !important;
+    color: var(--nav-text) !important;
 }
 
 /* Logo区域 */
 .logo,
 .navbar .logo,
 .site-header .logo {
-    color: white !important;
+    color: var(--nav-text) !important;
 }
 
 .logo span,
 .logo *,
 .navbar .logo span {
-    color: white !important;
+    color: var(--nav-text) !important;
 }
 
-/* 确保导航栏内所有元素都是白色 */
+/* 确保导航栏内所有元素使用主题颜色 */
 .navbar *:not(img),
 .site-header *:not(img) {
-    color: white !important;
+    color: var(--nav-text) !important;
 }
 
 /* 按钮 */
@@ -190,87 +193,87 @@ select:focus {
     background: #ffffff !important;
 }
 
-/* 页脚 - 使用中等深度的渐变，与导航栏统一但稍浅 */
+/* 页脚 - 与导航栏保持一致 */
 .footer,
 footer,
 .site-footer,
 .footer-stats {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 50%, var(--primary-color) 100%) !important;
-    opacity: 0.92 !important;
-    color: rgba(255, 255, 255, 0.95) !important;
+    background: var(--nav-bg) !important;
+    color: var(--nav-text) !important;
 }
 
 .footer *,
 footer *,
 .site-footer * {
-    color: rgba(255, 255, 255, 0.85) !important;
+    color: var(--nav-text-secondary) !important;
 }
 
 .footer a,
 footer a,
 .site-footer a {
-    color: rgba(255, 255, 255, 0.95) !important;
+    color: var(--nav-text) !important;
     text-decoration: underline !important;
 }
 
 .footer a:hover,
 footer a:hover,
 .site-footer a:hover {
-    color: white !important;
+    color: var(--nav-text-hover) !important;
     text-decoration: none !important;
 }
 
 /* 页脚统计信息 */
 .footer-stats,
 .stats-container {
-    background: rgba(0, 0, 0, 0.1) !important;
+    background: var(--nav-track-bg) !important;
     padding: 2rem 0 !important;
 }
 
 .stat-item,
 .footer-stat {
-    background: rgba(255, 255, 255, 0.15) !important;
-    border-color: rgba(255, 255, 255, 0.2) !important;
-    color: white !important;
+    background: var(--nav-indicator-bg) !important;
+    border-color: var(--nav-border) !important;
+    color: var(--nav-text) !important;
     backdrop-filter: blur(10px) !important;
 }
 
 .stat-item:hover,
 .footer-stat:hover {
-    background: rgba(255, 255, 255, 0.25) !important;
+    background: var(--nav-search-focus-bg) !important;
     transform: translateY(-3px) !important;
 }
 
 .stat-number,
 .stat-value {
-    color: white !important;
+    color: var(--nav-text) !important;
     font-weight: 600 !important;
 }
 
 .stat-label {
-    color: rgba(255, 255, 255, 0.8) !important;
+    color: var(--nav-text-secondary) !important;
 }
 
 /* 页脚版权信息 */
 .footer-copyright,
 .copyright {
-    color: rgba(255, 255, 255, 0.7) !important;
+    color: var(--nav-text-secondary) !important;
 }
 
 /* 页脚社交链接 */
 .footer-social,
 .social-links {
-    color: white !important;
+    color: var(--nav-text) !important;
 }
 
 .footer-social a,
 .social-links a {
-    color: white !important;
+    color: var(--nav-text) !important;
     opacity: 0.9 !important;
 }
 
 .footer-social a:hover,
 .social-links a:hover {
+    color: var(--nav-text-hover) !important;
     opacity: 1 !important;
 }
 
@@ -432,7 +435,7 @@ tbody tr:hover {
 header[style],
 nav[style],
 .navbar[style] {
-    background: var(--gradient-primary) !important;
+    background: var(--nav-bg) !important;
 }
 
 /* 额外的页脚覆盖 - 针对可能的内联样式 */
