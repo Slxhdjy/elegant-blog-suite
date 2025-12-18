@@ -315,6 +315,11 @@ if (document.readyState === 'loading') {
 
 // 提供全局打开函数
 window.openHotlistConfig = function() {
+    // 检查权限
+    if (!window.checkPermission('settings', 'update')) {
+        return;
+    }
+    
     if (hotlistConfigModal) {
         hotlistConfigModal.open();
     } else {

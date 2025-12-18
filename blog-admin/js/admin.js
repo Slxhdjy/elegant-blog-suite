@@ -87,6 +87,18 @@ const PageStateManager = {
 
 // 页面导航
 document.addEventListener('DOMContentLoaded', function() {
+    // 初始化权限管理器
+    if (typeof PermissionManager !== 'undefined') {
+        window.permissionManager = new PermissionManager();
+        console.log('🔐 权限管理器已初始化');
+        
+        // 测试权限系统
+        setTimeout(() => {
+            testPermissionSystem();
+        }, 1000);
+    } else {
+        console.warn('⚠️ 权限管理器类未找到');
+    }
     // 背景图片按钮事件监听
     const refreshBtn = document.getElementById('refreshBackgroundBtn');
     const previousBtn = document.getElementById('previousBackgroundBtn');
@@ -206,65 +218,23 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 新建文章按钮
-    const btnNewArticle = document.getElementById('btnNewArticle');
+    const btnNewArticle = document.getElementById('add-article-btn');
     if (btnNewArticle) {
         btnNewArticle.addEventListener('click', function() {
+            // 检查权限
+            if (!checkPermission('articles', 'create')) {
+                return;
+            }
+            
             // 保存当前页面信息，以便返回
             sessionStorage.setItem('adminReturnPage', currentPage || 'articles');
             // 跳转到编辑器
-            window.location.href = 'editor.html';
+            window.location.href = 'pages/editor.html';
         });
     }
 
-    // 新建分类按钮
-    const btnNewCategory = document.getElementById('btnNewCategory');
-    if (btnNewCategory) {
-        btnNewCategory.addEventListener('click', function() {
-            console.log('📂 新建分类按钮被点击');
-            const categoryForm = createCategoryForm();
-            console.log('📋 分类表单内容:', categoryForm.substring(0, 100) + '...');
-            
-            const modalTitle = '新建分类';
-            console.log('🔍 准备显示分类模态框，标题:', modalTitle);
-            showModal(modalTitle, categoryForm);
-        });
-    }
-
-    // 新建标签按钮
-    const btnNewTag = document.getElementById('btnNewTag');
-    if (btnNewTag) {
-        btnNewTag.addEventListener('click', function() {
-            console.log('🏷️ 新建标签按钮被点击');
-            const tagForm = createTagForm();
-            console.log('📋 标签表单内容:', tagForm.substring(0, 100) + '...');
-            
-            // 确保使用正确的标题
-            const modalTitle = '新建标签';
-            console.log('🔍 准备显示模态框，标题:', modalTitle);
-            showModal(modalTitle, tagForm);
-            
-            // 验证模态框标题是否正确设置
-            setTimeout(() => {
-                const createdModal = document.querySelector('.modal-overlay:not([id])');
-                if (createdModal) {
-                    const titleElement = createdModal.querySelector('.modal-header h3');
-                    if (titleElement) {
-                        console.log('✅ 模态框标题验证:', titleElement.textContent);
-                        if (titleElement.textContent !== modalTitle) {
-                            console.warn('⚠️ 标题不匹配！期望:', modalTitle, '实际:', titleElement.textContent);
-                            // 强制修正标题
-                            titleElement.textContent = modalTitle;
-                            console.log('🔧 已强制修正标题为:', modalTitle);
-                        }
-                    } else {
-                        console.error('❌ 未找到模态框标题元素');
-                    }
-                } else {
-                    console.error('❌ 未找到创建的模态框');
-                }
-            }, 100);
-        });
-    }
+    // 注意：新建分类和标签按钮事件已在 admin-render.js 的 initButtonEvents() 中处理
+    // 避免重复绑定事件导致冲突
 
     // 上传媒体按钮
     const btnUploadMedia = document.getElementById('btnUploadMedia');
@@ -328,7 +298,7 @@ function setupTableActions() {
             // 跳转到编辑器（这里可以根据实际情况传递文章ID）
             showNotification('打开编辑界面...', 'info');
             setTimeout(() => {
-                window.location.href = 'editor.html';
+                window.location.href = 'pages/editor.html';
             }, 500);
         });
     });
@@ -598,6 +568,11 @@ function closeModal() {
 
 // 保存分类
 async function saveCategory() {
+    // 检查权限
+    if (!checkPermission('categories', 'create')) {
+        return;
+    }
+    
     try {
         const form = document.querySelector('.modal-form');
         const nameInput = form.querySelector('input[type="text"]');
@@ -642,6 +617,11 @@ async function saveCategory() {
 
 // 保存标签
 async function saveTag() {
+    // 检查权限
+    if (!checkPermission('tags', 'create')) {
+        return;
+    }
+    
     try {
         const form = document.querySelector('.modal-form');
         const nameInput = form.querySelector('input[type="text"]');
@@ -863,6 +843,11 @@ document.addEventListener('click', function(e) {
 
 // 显示修改密码模态框
 function showChangePasswordModal() {
+    // 检查权限 - 用户可以修改自己的密码
+    if (!window.checkPermission('users', 'update') && !AuthManager.isLoggedIn()) {
+        return;
+    }
+    
     // 关闭下拉菜单
     const dropdown = document.querySelector('.user-dropdown');
     const menu = document.getElementById('userDropdownMenu');
@@ -888,7 +873,7 @@ function closeChangePasswordModal() {
 }
 
 // 处理修改密码
-function handleChangePassword(event) {
+async function handleChangePassword(event) {
     event.preventDefault();
     
     const oldPassword = document.getElementById('oldPassword').value;
@@ -914,8 +899,14 @@ function handleChangePassword(event) {
     }
     
     // 验证旧密码
-    if (!AuthManager.login(currentUser.username, oldPassword)) {
-        showNotification('当前密码错误', 'error');
+    try {
+        const loginResult = await AuthManager.login(currentUser.username, oldPassword);
+        if (!loginResult.success) {
+            showNotification('当前密码错误', 'error');
+            return;
+        }
+    } catch (error) {
+        showNotification('验证密码失败', 'error');
         return;
     }
     
@@ -1011,7 +1002,22 @@ async function loadUsersList() {
     
         // 生成表格行
         tbody.innerHTML = users.map((user, index) => {
-            const roleText = user.role === 'admin' ? '👑 管理员' : '✏️ 编辑者';
+            const roleIcons = {
+                'super_admin': '👑',
+                'admin': '🛡️',
+                'editor': '✏️',
+                'viewer': '👁️'
+            };
+            const roleNames = {
+                'super_admin': '超管',
+                'admin': '管理员',
+                'editor': '编辑者',
+                'viewer': '查看者'
+            };
+            const roleIcon = roleIcons[user.role] || '❓';
+            const roleName = roleNames[user.role] || user.role;
+            const roleText = `${roleIcon} ${roleName}`;
+            
             const statusBadge = user.status === 'active' 
                 ? '<span class="badge badge-success">启用</span>' 
                 : '<span class="badge badge-warning">禁用</span>';
@@ -1052,6 +1058,11 @@ async function loadUsersList() {
 
 // 显示添加用户模态框
 function showAddUserModal() {
+    // 检查权限
+    if (!checkPermission('users', 'create')) {
+        return;
+    }
+    
     const modal = document.getElementById('userModal');
     const title = document.getElementById('userModalTitle');
     const form = document.getElementById('userForm');
@@ -1084,6 +1095,11 @@ function showAddUserModal() {
 
 // 显示编辑用户模态框
 async function showEditUserModal(username) {
+    // 检查权限
+    if (!checkPermission('users', 'update')) {
+        return;
+    }
+    
     if (typeof userManager === 'undefined') return;
     
     try {
@@ -1189,6 +1205,11 @@ async function handleSaveUser(event) {
 
 // 删除用户
 async function deleteUser(username) {
+    // 检查权限
+    if (!checkPermission('users', 'delete')) {
+        return;
+    }
+    
     if (typeof userManager === 'undefined') {
         showNotification('用户管理器未加载', 'error');
         return;
@@ -1259,7 +1280,7 @@ function closeResetPasswordModal() {
 }
 
 // 处理重置密码
-function handleResetPassword(event) {
+async function handleResetPassword(event) {
     event.preventDefault();
     
     if (typeof userManager === 'undefined') {
@@ -1282,14 +1303,19 @@ function handleResetPassword(event) {
         return;
     }
     
-    // 重置密码
-    const result = userManager.resetPassword(username, newPassword);
-    
-    if (result.success) {
-        showNotification(result.message, 'success');
-        closeResetPasswordModal();
-    } else {
-        showNotification(result.message, 'error');
+    try {
+        // 重置密码
+        const result = await userManager.resetPassword(username, newPassword);
+        
+        if (result.success) {
+            showNotification(result.message, 'success');
+            closeResetPasswordModal();
+        } else {
+            showNotification(result.message, 'error');
+        }
+    } catch (error) {
+        console.error('重置密码失败:', error);
+        showNotification('重置密码失败: ' + error.message, 'error');
     }
 }
 
@@ -1465,6 +1491,11 @@ async function deleteCategory(id) {
 
 // 编辑标签
 async function editTag(id) {
+    // 检查权限
+    if (!window.checkPermission('tags', 'update')) {
+        return;
+    }
+    
     try {
         const tags = await window.dataAdapter.getTags();
         const tag = tags.find(t => String(t.id) === String(id));
@@ -1526,6 +1557,11 @@ async function updateTag(id) {
 
 // 删除标签
 async function deleteTag(id) {
+    // 检查权限
+    if (!window.checkPermission('tags', 'delete')) {
+        return;
+    }
+    
     try {
         if (!confirm('确定要删除这个标签吗？此操作不可恢复。')) {
             return;
@@ -1597,6 +1633,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // 备份数据
 async function backupData() {
+    // 检查权限
+    if (!window.checkPermission('settings', 'update')) {
+        return;
+    }
+    
     const statusDiv = document.getElementById('backupStatus');
     statusDiv.style.display = 'block';
     statusDiv.style.background = '#e3f2fd';
@@ -1654,6 +1695,11 @@ async function backupData() {
 
 // 显示备份列表
 async function showBackupList() {
+    // 检查权限
+    if (!window.checkPermission('settings', 'read')) {
+        return;
+    }
+    
     try {
         // 获取API基础URL
         const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
@@ -1749,4 +1795,82 @@ function closeBackupListModal() {
     if (modal) {
         modal.remove();
     }
+}
+
+// ========================================
+// 权限系统测试函数
+// ========================================
+
+function testPermissionSystem() {
+    if (!window.permissionManager) {
+        console.error('❌ 权限管理器未初始化');
+        return;
+    }
+    
+    console.log('🧪 开始测试权限系统...');
+    
+    const currentUser = window.permissionManager.getCurrentUser();
+    if (currentUser) {
+        console.log('👤 当前用户:', currentUser.username, '角色:', currentUser.role);
+        
+        // 测试各种权限
+        const testCases = [
+            { module: 'articles', action: 'read' },
+            { module: 'articles', action: 'create' },
+            { module: 'articles', action: 'update' },
+            { module: 'articles', action: 'delete' },
+            { module: 'users', action: 'read' },
+            { module: 'users', action: 'create' },
+            { module: 'users', action: 'update' },
+            { module: 'users', action: 'delete' },
+            { module: 'settings', action: 'read' },
+            { module: 'settings', action: 'update' }
+        ];
+        
+        console.log('🔍 权限测试结果:');
+        testCases.forEach(test => {
+            const hasPermission = window.permissionManager.hasPermission(test.module, test.action);
+            const status = hasPermission ? '✅' : '❌';
+            console.log(`${status} ${test.module}.${test.action}: ${hasPermission}`);
+        });
+        
+        // 显示权限统计
+        const permissions = window.permissionManager.getUserPermissions();
+        console.log(`📊 总权限数: ${permissions.length}`);
+        console.log('📋 权限列表:', permissions);
+        
+        // 更新权限状态卡片
+        updatePermissionStatusCard();
+    } else {
+        console.error('❌ 未找到当前用户信息');
+    }
+}
+
+// 更新权限状态卡片
+function updatePermissionStatusCard() {
+    const card = document.getElementById('permission-status-card');
+    if (!card || !window.permissionManager) return;
+    
+    const currentUser = window.permissionManager.getCurrentUser();
+    if (!currentUser) return;
+    
+    const roleDisplayName = window.permissionManager.getRoleDisplayName(currentUser.role);
+    const permissions = window.permissionManager.getUserPermissions();
+    
+    const valueElement = card.querySelector('.stat-value');
+    if (valueElement) {
+        valueElement.textContent = roleDisplayName;
+        valueElement.title = `拥有 ${permissions.length} 项权限`;
+    }
+    
+    // 根据角色设置不同的颜色
+    const roleColors = {
+        'super_admin': 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+        'admin': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        'editor': 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+        'viewer': 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
+    };
+    
+    const color = roleColors[currentUser.role] || roleColors.viewer;
+    card.style.background = color;
 }

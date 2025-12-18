@@ -556,6 +556,20 @@ body {
     transform: scale(1.2);
 }
 
+/* 权限禁用的按钮样式 - 只针对特定按钮 */
+.tag-edit-btn[data-permission-disabled="true"],
+.tag-delete-btn[data-permission-disabled="true"] {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+}
+
+.tag-edit-btn[data-permission-disabled="true"]:hover,
+.tag-delete-btn[data-permission-disabled="true"]:hover {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
 /* 统计卡片 */
 .stats-grid {
     display: grid;

@@ -13,7 +13,7 @@
   "backendTheme": "ocean",
   "adminTheme": "ocean",
   "enableThemeSystem": true,
-  "useApiMode": false,
+  "useApiMode": true,
   "enableFrontendVideoBackground": true,
   "enableBackendVideoBackground": true
 }

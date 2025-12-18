@@ -1,0 +1,82 @@
+[
+  {
+    "id": "test-resume-1",
+    "name": "张三的简历",
+    "description": "",
+    "data": {
+      "personal": {
+        "name": "张三",
+        "phone": "13800138000",
+        "email": "zhangsan@example.com",
+        "position": "前端开发工程师",
+        "age": "25",
+        "gender": "男",
+        "address": "北京市朝阳区"
+      },
+      "education": [],
+      "experience": [],
+      "projects": [],
+      "skills": "JavaScript, Vue.js, React, Node.js",
+      "evaluation": "具有3年前端开发经验，熟悉现代前端技术栈。",
+      "meta": {
+        "template": "classic",
+        "createdAt": "2024-12-11T10:00:00.000Z",
+        "updatedAt": "2024-12-11T10:00:00.000Z"
+      }
+    },
+    "createdAt": "2024-12-11T10:00:00.000Z",
+    "updatedAt": "2025-12-11T11:31:11.655Z"
+  },
+  {
+    "id": "1",
+    "name": "????2",
+    "description": "????",
+    "data": {
+      "personal": {
+        "name": "????",
+        "email": "test@example.com",
+        "phone": "12345678901",
+        "position": "????"
+      }
+    },
+    "createdAt": "2025-12-11T10:44:50.728Z"
+  },
+  {
+    "id": "mj1bcew2ixzy4ltw0so",
+    "name": "FormHandler测试简历",
+    "description": "FormHandler测试描述",
+    "data": {
+      "personal": {
+        "name": "FormHandler测试用户",
+        "email": "formhandler@example.com",
+        "phone": "13900139000",
+        "position": "FormHandler测试职位",
+        "age": "30",
+        "gender": "男",
+        "address": "测试地址"
+      },
+      "education": [
+        {
+          "id": "mj1b6u2fx812zljk11m",
+          "school": " ",
+          "major": "",
+          "degree": "",
+          "startDate": "",
+          "endDate": "",
+          "description": ""
+        }
+      ],
+      "experience": [],
+      "projects": [],
+      "skills": "Vue.js, React, Node.js",
+      "evaluation": "这是FormHandler测试简历",
+      "meta": {
+        "template": "classic",
+        "createdAt": "2025-12-11T10:42:01.079Z",
+        "updatedAt": "2025-12-11T10:43:46.066Z"
+      }
+    },
+    "createdAt": "2025-12-11T10:42:01.079Z",
+    "updatedAt": "2025-12-11T10:48:29.389Z"
+  }
+]

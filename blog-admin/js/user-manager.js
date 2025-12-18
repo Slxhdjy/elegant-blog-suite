@@ -82,7 +82,8 @@ class UserManager {
                 }
                 
                 const currentUserData = await this.getUser(currentUser.username);
-                if (!currentUserData || currentUserData.role !== 'admin') {
+                const canAddUsers = currentUserData && ['admin', 'super_admin'].includes(currentUserData.role);
+                if (!canAddUsers) {
                     return {
                         success: false,
                         message: '只有管理员可以添加用户'
@@ -185,8 +186,9 @@ class UserManager {
             
             const currentUserData = await this.getUser(currentUser.username);
             
-            // 只有管理员可以修改其他用户，或者用户可以修改自己的信息
-            if (currentUserData.role !== 'admin' && currentUser.username !== username) {
+            // 只有管理员或超级管理员可以修改其他用户，或者用户可以修改自己的信息
+            const canModifyOthers = ['admin', 'super_admin'].includes(currentUserData.role);
+            if (!canModifyOthers && currentUser.username !== username) {
                 return {
                     success: false,
                     message: '没有权限修改其他用户信息'
@@ -212,7 +214,8 @@ class UserManager {
             }
             
             // 普通用户不能修改自己的角色
-            if (updates.role && currentUserData.role !== 'admin' && currentUser.username === username) {
+            const canModifyRoles = ['admin', 'super_admin'].includes(currentUserData.role);
+            if (updates.role && !canModifyRoles && currentUser.username === username) {
                 return {
                     success: false,
                     message: '不能修改自己的角色'
@@ -264,7 +267,8 @@ class UserManager {
             }
             
             const currentUserData = await this.getUser(currentUser.username);
-            if (!currentUserData || currentUserData.role !== 'admin') {
+            const canDeleteUsers = currentUserData && ['admin', 'super_admin'].includes(currentUserData.role);
+            if (!canDeleteUsers) {
                 return {
                     success: false,
                     message: '只有管理员可以删除用户'
@@ -289,9 +293,9 @@ class UserManager {
                 };
             }
             
-            // 至少保留一个管理员
-            const adminUsers = users.filter(u => u.role === 'admin');
-            if (adminUsers.length === 1 && users[userIndex].role === 'admin') {
+            // 至少保留一个管理员或超级管理员
+            const adminUsers = users.filter(u => ['admin', 'super_admin'].includes(u.role));
+            if (adminUsers.length === 1 && ['admin', 'super_admin'].includes(users[userIndex].role)) {
                 return {
                     success: false,
                     message: '不能删除最后一个管理员'
@@ -353,7 +357,7 @@ class UserManager {
     }
     
     // 重置密码（仅管理员）
-    resetPassword(username, newPassword) {
+    async resetPassword(username, newPassword) {
         const currentUser = AuthManager.getCurrentUser();
         if (!currentUser) {
             return {
@@ -362,8 +366,9 @@ class UserManager {
             };
         }
         
-        const currentUserData = this.getUser(currentUser.username);
-        if (!currentUserData || currentUserData.role !== 'admin') {
+        const currentUserData = await this.getUser(currentUser.username);
+        const canResetPasswords = currentUserData && ['admin', 'super_admin'].includes(currentUserData.role);
+        if (!canResetPasswords) {
             return {
                 success: false,
                 message: '只有管理员可以重置密码'
@@ -377,7 +382,7 @@ class UserManager {
             };
         }
         
-        return this.updateUser(username, { password: newPassword });
+        return await this.updateUser(username, { password: newPassword });
     }
     
     // 验证用户登录
@@ -425,7 +430,7 @@ class UserManager {
             total: users.length,
             active: users.filter(u => u.status === 'active').length,
             inactive: users.filter(u => u.status === 'inactive').length,
-            admins: users.filter(u => u.role === 'admin').length,
+            admins: users.filter(u => ['admin', 'super_admin'].includes(u.role)).length,
             editors: users.filter(u => u.role === 'editor').length
         };
     }

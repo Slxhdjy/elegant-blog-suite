@@ -476,6 +476,21 @@
     color: var(--primary-color) !important;
 }
 
+/* 权限禁用的按钮 - 只针对标签按钮 */
+[data-theme] .tag-edit-btn[data-permission-disabled="true"],
+[data-theme] .tag-delete-btn[data-permission-disabled="true"] {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+}
+
+[data-theme] .tag-edit-btn[data-permission-disabled="true"]:hover,
+[data-theme] .tag-delete-btn[data-permission-disabled="true"]:hover {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+    background: transparent !important;
+    transform: none !important;
+}
+
 /* 媒体卡片 */
 [data-theme] .media-item:hover {
     border-color: var(--primary-color) !important;

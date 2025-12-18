@@ -31,9 +31,13 @@ class DataAdapter {
         // 检查用户配置和环境
         const userConfig = localStorage.getItem('use_json_mode');
         
-        // 在Vercel环境下，强制使用环境适配器
-        if (window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
-            this.useJSON = false; // 不使用JSON文件直读
+        // 检查环境和用户配置
+        const hostname = window.location.hostname;
+        const isLocalhost = hostname.includes('localhost') || hostname.includes('127.0.0.1');
+        
+        if (window.environmentAdapter && window.environmentAdapter.environment === 'vercel' && !isLocalhost) {
+            // 只有在真正的Vercel环境下才使用环境适配器
+            this.useJSON = false;
             this.useEnvironmentAdapter = true;
             console.log('🌐 Vercel环境：使用环境适配器');
         } else if (userConfig === 'false') {

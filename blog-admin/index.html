@@ -164,47 +164,47 @@
             </div>
         </div>
         <nav class="sidebar-nav">
-            <a href="#dashboard" class="nav-item active" data-page="dashboard">
+            <a href="#dashboard" class="nav-item active" data-page="dashboard" id="dashboard-tab">
                 <span class="icon">📊</span>
                 <span>仪表盘</span>
             </a>
-            <a href="#articles" class="nav-item" data-page="articles">
+            <a href="#articles" class="nav-item" data-page="articles" id="articles-tab">
                 <span class="icon">📄</span>
                 <span>文章管理</span>
             </a>
-            <a href="#categories" class="nav-item" data-page="categories">
+            <a href="#categories" class="nav-item" data-page="categories" id="categories-tab">
                 <span class="icon">📂</span>
                 <span>分类管理</span>
             </a>
-            <a href="#tags" class="nav-item" data-page="tags">
+            <a href="#tags" class="nav-item" data-page="tags" id="tags-tab">
                 <span class="icon">🏷️</span>
                 <span>标签管理</span>
             </a>
-            <a href="#comments" class="nav-item" data-page="comments">
+            <a href="#comments" class="nav-item" data-page="comments" id="comments-tab">
                 <span class="icon">💬</span>
                 <span>评论管理</span>
             </a>
-            <a href="#guestbook" class="nav-item" data-page="guestbook">
+            <a href="#guestbook" class="nav-item" data-page="guestbook" id="guestbook-tab">
                 <span class="icon">📝</span>
                 <span>留言管理</span>
             </a>
-            <a href="#media" class="nav-item" data-page="media">
+            <a href="#media" class="nav-item" data-page="media" id="media-tab">
                 <span class="icon">🖼️</span>
                 <span>媒体库</span>
             </a>
-            <a href="#links" class="nav-item" data-page="links">
+            <a href="#links" class="nav-item" data-page="links" id="links-tab">
                 <span class="icon">🔗</span>
                 <span>友情链接</span>
             </a>
-            <a href="#apps" class="nav-item" data-page="apps">
+            <a href="#apps" class="nav-item" data-page="apps" id="apps-tab">
                 <span class="icon">📱</span>
                 <span>应用管理</span>
             </a>
-            <a href="#settings" class="nav-item" data-page="settings">
+            <a href="#settings" class="nav-item" data-page="settings" id="settings-tab">
                 <span class="icon">⚙️</span>
                 <span>系统设置</span>
             </a>
-            <a href="#users" class="nav-item" data-page="users">
+            <a href="#users" class="nav-item" data-page="users" id="users-tab">
                 <span class="icon">👥</span>
                 <span>用户管理</span>
             </a>
@@ -248,6 +248,13 @@
                         <div class="stat-info">
                             <div class="stat-value">1,234</div>
                             <div class="stat-label">访客总数</div>
+                        </div>
+                    </div>
+                    <div class="stat-card" id="permission-status-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                        <div class="stat-icon">🔐</div>
+                        <div class="stat-info">
+                            <div class="stat-value current-user-info">加载中...</div>
+                            <div class="stat-label">当前权限</div>
                         </div>
                     </div>
                 </div>
@@ -297,7 +304,7 @@
                         <div class="dashboard-card events-widget">
                             <h3>
                                 <span>📌 重要事项</span>
-                                <button class="btn-add-event" onclick="eventsManager.showEventModal()">+ 添加</button>
+                                <button class="btn-add-event" id="add-event-btn" onclick="eventsManager.showEventModal()">+ 添加</button>
                             </h3>
                             <div class="events-list-container" id="eventsListContainer">
                                 <div class="events-list" id="eventsList"></div>
@@ -329,7 +336,7 @@
                 <div class="page-header">
                     <h1>📄 文章管理</h1>
                     <div class="article-actions">
-                        <button class="btn-action btn-new" id="btnNewArticle">
+                        <button class="btn-action btn-new" id="add-article-btn">
                             <span class="btn-icon">✏️</span>
                             <span class="btn-text">新建文章</span>
                         </button>
@@ -398,7 +405,7 @@
             <section id="page-categories" class="page-content">
                 <div class="page-header">
                     <h1>📂 分类管理</h1>
-                    <button class="btn-primary" id="btnNewCategory">新建分类</button>
+                    <button class="btn-primary" id="add-category-btn">新建分类</button>
                 </div>
                 <div class="table-container">
                     <table class="data-table">
@@ -447,7 +454,7 @@
             <section id="page-tags" class="page-content">
                 <div class="page-header">
                     <h1>🏷️ 标签管理</h1>
-                    <button class="btn-primary" id="btnNewTag">新建标签</button>
+                    <button class="btn-primary" id="add-tag-btn">新建标签</button>
                 </div>
                 <div class="tags-grid">
                     <div class="tag-card">
@@ -593,7 +600,7 @@
                                 <span style="color: #2c5f7c; font-weight: bold;" id="imagesCount">0</span>
                             </div>
                         </div>
-                        <button class="btn-primary" id="btnUploadImage">上传图片</button>
+                        <button class="btn-primary" id="upload-image-btn">上传图片</button>
                     </div>
                     <div class="media-grid" id="imagesGrid"></div>
                     <input type="file" id="imageInput" accept="image/*" style="display: none;" multiple>
@@ -609,7 +616,7 @@
                             </div>
                         </div>
                         <div style="display: flex; gap: 0.5rem;">
-                            <button class="btn-primary" onclick="neteaseMusicModal.open()" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
+                            <button class="btn-primary" id="btnNeteaseMusicImport" onclick="neteaseMusicModal.open()" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
                                 🎵 网易云导入
                             </button>
                             <button class="btn-primary" id="btnAddMusic">手动添加</button>
@@ -666,7 +673,7 @@
             <section id="page-links" class="page-content">
                 <div class="page-header">
                     <h1>🔗 友情链接管理</h1>
-                    <button class="btn-primary" onclick="showAddLinkModal()">+ 添加友情链接</button>
+                    <button class="btn-primary" id="add-link-btn" onclick="showAddLinkModal()">+ 添加友情链接</button>
                 </div>
                 
                 <div class="data-card">
@@ -691,7 +698,7 @@
             <section id="page-apps" class="page-content">
                 <div class="page-header">
                     <h1>📱 应用管理</h1>
-                    <button class="btn-primary" onclick="safeShowAppModal()">+ 添加应用</button>
+                    <button class="btn-primary" id="add-app-btn" onclick="safeShowAppModal()">+ 添加应用</button>
                 </div>
                 
                 <div class="apps-manage-container">
@@ -1295,7 +1302,7 @@
             <section id="page-users" class="page-content">
                 <div class="page-header">
                     <h1>👥 用户管理</h1>
-                    <button class="btn-primary" onclick="showAddUserModal()">+ 添加用户</button>
+                    <button class="btn-primary" id="add-user-btn" onclick="showAddUserModal()">+ 添加用户</button>
                 </div>
                 
                 <!-- 用户统计 -->
@@ -1393,11 +1400,13 @@
                 
                 <div class="form-group">
                     <label for="userRole">角色 *</label>
-                    <select id="userRole" name="role" required title="选择用户角色">
-                        <option value="editor">编辑者</option>
-                        <option value="admin">管理员</option>
+                    <select id="userRole" name="role" required title="选择用户角色" style="font-size: 0.9rem;">
+                        <option value="viewer">查看者 - 只能查看内容</option>
+                        <option value="editor">编辑者 - 可以管理内容</option>
+                        <option value="admin">管理员 - 拥有大部分权限</option>
+                        <option value="super_admin">超管 - 拥有所有权限</option>
                     </select>
-                    <small style="color: #666; font-size: 0.85rem;">管理员拥有所有权限</small>
+                    <small style="color: #666; font-size: 0.85rem;">不同角色拥有不同的操作权限</small>
                 </div>
                 
                 <div class="form-group">
@@ -1586,6 +1595,9 @@
     <!-- 认证检查 - 必须最先加载 -->
     <script src="/blog-admin/js/auth.js"></script>
     <script src="/blog-admin/js/user-manager.js"></script>
+    
+    <!-- 权限管理系统 -->
+    <script src="/blog-admin/js/permission-manager.js"></script>
     <script>
         // 检查登录状态，未登录则跳转到登录页
         if (!AuthManager.requireAuth()) {

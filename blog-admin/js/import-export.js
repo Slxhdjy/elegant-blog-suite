@@ -15,6 +15,11 @@ class ArticleImportExport {
     
     // 显示导入对话框
     showImportDialog() {
+        // 检查权限
+        if (!window.checkPermission('articles', 'create')) {
+            return;
+        }
+        
         const modalHTML = `
             <div class="modal-overlay" id="importModal">
                 <div class="modal-content" style="max-width: 800px; width: 90%;">

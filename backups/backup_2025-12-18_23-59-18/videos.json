@@ -1,0 +1,102 @@
+[
+  {
+    "name": "夕阳云霞-女孩背影",
+    "url": "/uploads/images/cg/bg-9.mp4",
+    "cover": "/uploads/images/cg/bg-9.png",
+    "category": "BG",
+    "duration": 16,
+    "description": "夕阳云霞-女孩背影",
+    "id": 10,
+    "uploadDate": "2025-12-10"
+  },
+  {
+    "name": "湖边的风-湖面-白云",
+    "url": "/uploads/images/cg/bg-8.mp4",
+    "cover": "/uploads/images/cg/bg-8.png",
+    "category": "BG",
+    "duration": 9,
+    "description": "湖边的风-湖面-白云",
+    "id": 9,
+    "uploadDate": "2025-12-10"
+  },
+  {
+    "name": "二次元-动漫女孩",
+    "url": "/uploads/images/cg/bg-7.mp4",
+    "cover": "/uploads/images/cg/bg-7.png",
+    "category": "BG",
+    "duration": 19,
+    "description": "二次元-动漫女孩",
+    "id": 8,
+    "uploadDate": "2025-12-10"
+  },
+  {
+    "name": "兜帽-可爱猫少女",
+    "url": "/uploads/images/cg/bg-6.mp4",
+    "cover": "/uploads/images/cg/bg-6.png",
+    "category": "BG",
+    "duration": 10,
+    "description": "兜帽-可爱猫少女",
+    "id": 7,
+    "uploadDate": "2025-12-10"
+  },
+  {
+    "name": "动态-吊带-妆容",
+    "url": "/uploads/images/cg/bg-5.mp4",
+    "cover": "/uploads/images/cg/bg-5.png",
+    "category": "BG",
+    "duration": 10,
+    "description": "动态-吊带-妆容",
+    "id": 6,
+    "uploadDate": "2025-12-10"
+  },
+  {
+    "name": "樱花飘落",
+    "url": "/uploads/images/cg/bg-4.mp4",
+    "cover": "/uploads/images/cg/bg-4.png",
+    "category": "BG",
+    "duration": 10,
+    "description": "高清动态背景视频",
+    "id": 5,
+    "uploadDate": "2025-12-04"
+  },
+  {
+    "name": "古风美女",
+    "url": "/uploads/images/cg/bg-3.mp4",
+    "cover": "/uploads/images/cg/bg-3.png",
+    "category": "BG",
+    "duration": 5,
+    "description": "高清动态背景视频",
+    "id": 4,
+    "uploadDate": "2025-12-04"
+  },
+  {
+    "name": "白发猫耳",
+    "url": "/uploads/images/cg/bg-2.mp4",
+    "cover": "/uploads/images/cg/bg-2.png",
+    "category": "BG",
+    "duration": 10,
+    "description": "高清动态背景视频",
+    "id": 3,
+    "uploadDate": "2025-12-03"
+  },
+  {
+    "name": "蓝眼梦幻",
+    "url": "/uploads/images/cg/bg-1.mp4",
+    "cover": "/uploads/images/cg/bg-1.png",
+    "category": "BG",
+    "duration": 10,
+    "description": "高清动态背景视频",
+    "id": 2,
+    "uploadDate": "2025-12-03"
+  },
+  {
+    "name": "倩女幽魂CG",
+    "url": "/uploads/images/cg/cg.mp4",
+    "cover": "/uploads/images/cg/CG.jpg",
+    "category": "CG",
+    "duration": 175,
+    "description": "倩女幽魂CG",
+    "id": 1,
+    "uploadDate": "2025-11-22"
+  }
+]

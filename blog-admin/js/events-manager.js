@@ -207,6 +207,11 @@ class EventsManager {
     }
 
     showEventModal() {
+        // 检查权限
+        if (!window.checkPermission('dashboard', 'create')) {
+            return;
+        }
+        
         const modal = document.getElementById('eventModal');
         if (!modal) {
             this.createEventModal();

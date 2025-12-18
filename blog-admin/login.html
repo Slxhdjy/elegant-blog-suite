@@ -586,29 +586,36 @@
             loginBtn.classList.add('loading');
 
             // 模拟登录延迟（让用户看到加载动画）
-            setTimeout(() => {
-                // 使用 AuthManager 进行登录
-                const result = AuthManager.login(username, password);
-                
-                if (result.success) {
-                    successMessage.textContent = '✨ ' + result.message + '！正在跳转...';
-                    successMessage.style.display = 'block';
+            setTimeout(async () => {
+                try {
+                    // 使用 AuthManager 进行登录
+                    const result = await AuthManager.login(username, password);
                     
-                    // 保持加载状态，准备跳转
-                    setTimeout(() => {
-                        // 检查是否有重定向目标
-                        const redirectUrl = sessionStorage.getItem('redirect_after_login');
-                        if (redirectUrl) {
-                            sessionStorage.removeItem('redirect_after_login');
-                            window.location.href = redirectUrl;
-                        } else {
-                            window.location.href = 'index.html';
-                        }
-                    }, 1200);
-                } else {
-                    // 移除加载状态
+                    if (result.success) {
+                        successMessage.textContent = '✨ ' + result.message + '！正在跳转...';
+                        successMessage.style.display = 'block';
+                        
+                        // 保持加载状态，准备跳转
+                        setTimeout(() => {
+                            // 检查是否有重定向目标
+                            const redirectUrl = sessionStorage.getItem('redirect_after_login');
+                            if (redirectUrl) {
+                                sessionStorage.removeItem('redirect_after_login');
+                                window.location.href = redirectUrl;
+                            } else {
+                                window.location.href = 'index.html';
+                            }
+                        }, 1200);
+                    } else {
+                        // 移除加载状态
+                        loginBtn.classList.remove('loading');
+                        errorMessage.textContent = '❌ ' + result.message;
+                        errorMessage.style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('登录失败:', error);
                     loginBtn.classList.remove('loading');
-                    errorMessage.textContent = '❌ ' + result.message;
+                    errorMessage.textContent = '❌ 登录失败: ' + error.message;
                     errorMessage.style.display = 'block';
                 }
             }, 800);

@@ -35,10 +35,10 @@ const AuthManager = {
     },
     
     // 登录
-    login(username, password) {
+    async login(username, password) {
         // 使用用户管理器验证登录
         if (typeof window.userManager !== 'undefined') {
-            const result = window.userManager.validateLogin(username, password);
+            const result = await window.userManager.validateLogin(username, password);
             
             if (result.success) {
                 // 生成简单的token
@@ -61,16 +61,16 @@ const AuthManager = {
         }
         
         // 降级处理：如果用户管理器未加载，使用旧方法
-        const validUsers = ['admin', 'editor'];
+        console.warn('⚠️ 用户管理器未加载，使用降级认证方式');
         
-        if (!validUsers.includes(username)) {
+        const correctPassword = this.getPassword(username);
+        
+        if (!correctPassword) {
             return {
                 success: false,
                 message: '用户名不存在'
             };
         }
-        
-        const correctPassword = this.getPassword(username);
         
         if (correctPassword === password) {
             const token = btoa(`${username}:${Date.now()}`);
@@ -192,7 +192,9 @@ const AuthManager = {
         const storedPasswords = JSON.parse(localStorage.getItem('admin_passwords') || '{}');
         const defaultPasswords = {
             'admin': 'admin123',
-            'editor': 'editor123'
+            'editor': 'editor123',
+            'admin1': 'admin123',
+            'viewer': 'viewer123'
         };
         
         return storedPasswords[username] || defaultPasswords[username];

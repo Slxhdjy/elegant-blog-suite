@@ -226,6 +226,12 @@ class AppsAdminManager {
     async saveApp(event) {
         event.preventDefault();
         
+        // 检查权限
+        const action = this.currentApp ? 'update' : 'create';
+        if (!window.checkPermission('apps', action)) {
+            return;
+        }
+        
         const formData = {
             name: document.getElementById('appName').value.trim(),
             icon: document.getElementById('appIcon').value.trim(),
@@ -292,11 +298,21 @@ class AppsAdminManager {
 
     // 编辑应用
     editApp(appId) {
+        // 检查权限
+        if (!window.checkPermission('apps', 'update')) {
+            return;
+        }
+        
         this.showAppModal(appId);
     }
 
     // 切换应用状态
     async toggleStatus(appId) {
+        // 检查权限
+        if (!window.checkPermission('apps', 'update')) {
+            return;
+        }
+        
         const app = this.apps.find(a => a.id === appId);
         if (!app) return;
 
@@ -327,6 +343,11 @@ class AppsAdminManager {
 
     // 删除应用
     async deleteApp(appId) {
+        // 检查权限
+        if (!window.checkPermission('apps', 'delete')) {
+            return;
+        }
+        
         const app = this.apps.find(a => a.id === appId);
         if (!app) return;
 
@@ -390,6 +411,11 @@ function initAppsManager() {
 // 安全的显示应用模态框函数
 function safeShowAppModal() {
     console.log('🎯 safeShowAppModal 被调用');
+    
+    // 检查权限
+    if (!window.checkPermission('apps', 'create')) {
+        return;
+    }
     
     if (!window.appsAdminManager) {
         console.log('⚠️ appsAdminManager 不存在，正在初始化...');

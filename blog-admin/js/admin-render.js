@@ -126,6 +126,13 @@ async function renderArticlesTable(page = 1) {
         
         // 渲染分页控件
         renderArticlesPagination(totalPages, totalArticles);
+        
+        // 更新权限样式
+        setTimeout(() => {
+            if (window.updatePermissionStyles) {
+                window.updatePermissionStyles();
+            }
+        }, 100);
     } catch (error) {
         console.error('加载文章失败:', error);
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem; color:#f44336;">加载失败，请刷新重试</td></tr>';
@@ -273,7 +280,7 @@ async function renderTagsGrid() {
                 </div>
                 <div class="tag-actions" style="margin-top: 1rem;">
                     <button class="btn-icon tag-edit-btn" data-tag-id="${tag.id}" title="编辑标签">✏️</button>
-                    <button class="btn-icon tag-delete-btn" data-tag-id="${tag.id}" title="删除标签" ${tag.count > 0 ? 'style="opacity: 0.5;" disabled' : ''}>🗑️</button>
+                    <button class="btn-icon tag-delete-btn" data-tag-id="${tag.id}" title="删除标签" ${tag.count > 0 ? 'data-has-articles="true"' : ''}>🗑️</button>
                 </div>
                 ${tag.count === 0 ? '<div style="position: absolute; top: 0.5rem; right: 0.5rem; background: #ff9800; color: white; padding: 0.2rem 0.5rem; border-radius: 10px; font-size: 0.7rem;">未使用</div>' : ''}
             </div>
@@ -281,6 +288,44 @@ async function renderTagsGrid() {
         
         // 使用事件委托处理按钮点击
         setupTagButtonHandlers();
+        
+        // 更新标签按钮权限样式 - 多次尝试确保DOM完全加载
+        const updatePermissions = () => {
+            if (window.permissionManager && window.forceUpdateTagButtons) {
+                const tagButtons = document.querySelectorAll('.tag-edit-btn, .tag-delete-btn');
+                if (tagButtons.length > 0) {
+                    console.log(`🏷️ 找到 ${tagButtons.length} 个标签按钮，开始应用权限样式`);
+                    window.forceUpdateTagButtons();
+                    
+                    // 验证样式是否应用成功
+                    setTimeout(() => {
+                        const updatedButtons = document.querySelectorAll('.tag-edit-btn, .tag-delete-btn');
+                        let hasDisabledButtons = false;
+                        updatedButtons.forEach(btn => {
+                            if (btn.hasAttribute('data-permission-disabled') || btn.style.opacity === '0.4') {
+                                hasDisabledButtons = true;
+                            }
+                        });
+                        
+                        if (!hasDisabledButtons) {
+                            console.log('⚠️ 权限样式未应用成功，尝试强制应用');
+                            if (window.forceGrayTagButtons) {
+                                window.forceGrayTagButtons();
+                            }
+                        } else {
+                            console.log('✅ 权限样式应用成功');
+                        }
+                    }, 100);
+                } else {
+                    console.log('⚠️ 未找到标签按钮，稍后重试');
+                }
+            }
+        };
+        
+        // 多次尝试，确保按钮已渲染
+        setTimeout(updatePermissions, 100);
+        setTimeout(updatePermissions, 500);
+        setTimeout(updatePermissions, 1000);
     } catch (error) {
         console.error('加载标签失败:', error);
         tagsGrid.innerHTML = '<div style="text-align:center; padding:2rem; color:#f44336;">加载失败，请刷新重试</div>';
@@ -306,11 +351,25 @@ function setupTagButtonHandlers() {
         const deleteBtn = e.target.closest('.tag-delete-btn');
         
         if (editBtn) {
-            const tagId = editBtn.dataset.tagId; // 保持原始格式，不转换
+            // 检查权限
+            if (!window.checkPermission('tags', 'update')) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            
+            const tagId = editBtn.dataset.tagId;
             console.log('编辑标签按钮被点击, ID:', tagId, 'Type:', typeof tagId);
             await editTag(tagId);
         } else if (deleteBtn && !deleteBtn.disabled) {
-            const tagId = deleteBtn.dataset.tagId; // 保持原始格式，不转换
+            // 检查权限
+            if (!window.checkPermission('tags', 'delete')) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            
+            const tagId = deleteBtn.dataset.tagId;
             console.log('删除标签按钮被点击, ID:', tagId, 'Type:', typeof tagId);
             await deleteTagConfirm(tagId);
         }
@@ -459,6 +518,11 @@ window.deleteCategoryConfirm = deleteCategoryConfirm;
 
 // 编辑标签
 async function editTag(id) {
+    // 检查权限
+    if (!window.checkPermission('tags', 'update')) {
+        return;
+    }
+    
     console.log('editTag 函数被调用, ID:', id, 'Type:', typeof id);
     
     try {
@@ -526,6 +590,11 @@ async function updateTag(id) {
 
 // 删除标签确认
 async function deleteTagConfirm(id) {
+    // 检查权限
+    if (!window.checkPermission('tags', 'delete')) {
+        return;
+    }
+    
     console.log('deleteTagConfirm 函数被调用, ID:', id, 'Type:', typeof id);
     
     try {
@@ -648,7 +717,7 @@ function initButtonEvents() {
     }
 
     // 新建分类按钮
-    const btnNewCategory = document.getElementById('btnNewCategory');
+    const btnNewCategory = document.getElementById('add-category-btn');
     if (btnNewCategory && !btnNewCategory.dataset.initialized) {
         btnNewCategory.dataset.initialized = 'true';
         btnNewCategory.addEventListener('click', function() {
@@ -683,7 +752,7 @@ function initButtonEvents() {
     }
 
     // 新建标签按钮
-    const btnNewTag = document.getElementById('btnNewTag');
+    const btnNewTag = document.getElementById('add-tag-btn');
     if (btnNewTag && !btnNewTag.dataset.initialized) {
         btnNewTag.dataset.initialized = 'true';
         console.log('✅ 找到新建标签按钮，绑定事件');
@@ -757,36 +826,7 @@ async function createCategory() {
     }
 }
 
-// 新建标签按钮
-document.getElementById('btnNewTag')?.addEventListener('click', function() {
-    const form = `
-        <div class="modal-form">
-            <div class="form-group">
-                <label>标签名称</label>
-                <input type="text" class="form-control" id="newTagName" placeholder="请输入标签名称">
-            </div>
-            <div class="modal-actions">
-                <button class="btn-primary" onclick="createTag()">保存</button>
-                <button class="btn-secondary" onclick="closeModal()">取消</button>
-            </div>
-        </div>
-    `;
-    showModal('新建标签', form);
-    
-    // 为输入框添加回车键支持和自动聚焦
-    setTimeout(() => {
-        const input = document.getElementById('newTagName');
-        if (input) {
-            input.focus();
-            input.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    createTag();
-                }
-            });
-        }
-    }, 100);
-});
+// 注意：新建标签按钮事件已在 initButtonEvents() 中处理，此处不再重复绑定
 
 // 创建标签
 async function createTag() {
@@ -900,6 +940,13 @@ async function renderImagesGrid() {
             </div>
         </div>
     `).join('');
+    
+    // 更新权限样式
+    setTimeout(() => {
+        if (window.updatePermissionStyles) {
+            window.updatePermissionStyles();
+        }
+    }, 100);
 }
 
 // 渲染音乐表格
@@ -980,6 +1027,13 @@ async function renderMusicTable() {
     
     // 添加音乐按钮事件委托
     setupMusicButtonHandlers();
+    
+    // 确保权限样式立即更新
+    setTimeout(() => {
+        if (window.updatePermissionStyles) {
+            window.updatePermissionStyles();
+        }
+    }, 100);
 }
 
 // 设置音乐按钮事件处理器
@@ -1005,6 +1059,13 @@ function setupMusicButtonHandlers() {
             await deleteMusicConfirm(musicId);
         }
     });
+    
+    // 更新权限样式
+    setTimeout(() => {
+        if (window.updatePermissionStyles) {
+            window.updatePermissionStyles();
+        }
+    }, 100);
 }
 
 // 渲染视频表格
@@ -1044,6 +1105,13 @@ async function renderVideosTable() {
     
     // 添加视频按钮事件委托
     setupVideoButtonHandlers();
+    
+    // 确保权限样式立即更新
+    setTimeout(() => {
+        if (window.updatePermissionStyles) {
+            window.updatePermissionStyles();
+        }
+    }, 100);
 }
 
 // 设置视频按钮事件处理器
@@ -1065,6 +1133,13 @@ function setupVideoButtonHandlers() {
             await deleteVideoConfirm(videoId);
         }
     });
+    
+    // 更新权限样式
+    setTimeout(() => {
+        if (window.updatePermissionStyles) {
+            window.updatePermissionStyles();
+        }
+    }, 100);
 }
 
 // 格式化时长
@@ -1085,7 +1160,12 @@ async function renderMediaGrid() {
 // ========== 图片管理 ==========
 
 // 上传图片
-document.getElementById('btnUploadImage')?.addEventListener('click', function() {
+document.getElementById('upload-image-btn')?.addEventListener('click', function() {
+    // 检查权限
+    if (!window.checkPermission('media', 'upload')) {
+        return;
+    }
+    
     document.getElementById('imageInput').click();
 });
 
@@ -1144,6 +1224,11 @@ function showImageUploadForm(file) {
 
 // 确认上传图片
 async function confirmImageUpload() {
+    // 检查权限
+    if (!window.checkPermission('media', 'upload')) {
+        return;
+    }
+    
     const file = window.tempUploadFile;
     const description = document.getElementById('uploadImageDesc').value.trim();
     
@@ -1196,6 +1281,11 @@ async function uploadMultipleImages(files) {
 
 // 编辑图片
 async function editImage(id) {
+    // 检查权限
+    if (!window.checkPermission('media', 'update')) {
+        return;
+    }
+    
     const image = await window.blogDataStore.getImageById(id);
     if (!image) {
         showNotification('图片不存在', 'error');
@@ -1275,6 +1365,11 @@ async function previewImage(id) {
 
 // 复制图片链接
 async function copyImageUrl(id) {
+    // 检查权限 - 复制链接属于读取权限
+    if (!window.checkPermission('media', 'read')) {
+        return;
+    }
+    
     const image = await window.blogDataStore.getImageById(id);
     if (!image) return;
 
@@ -1290,6 +1385,11 @@ async function copyImageUrl(id) {
 
 // 删除图片确认
 async function deleteImageConfirm(id) {
+    // 检查权限
+    if (!window.checkPermission('media', 'delete')) {
+        return;
+    }
+    
     const image = await window.blogDataStore.getImageById(id);
     if (!image) return;
 
@@ -1308,11 +1408,22 @@ async function deleteImageConfirm(id) {
 
 // 添加音乐
 document.getElementById('btnAddMusic')?.addEventListener('click', function() {
+    // 检查权限
+    if (!window.checkPermission('media', 'upload')) {
+        return;
+    }
+    
     showMusicForm();
 });
 
 function showMusicForm(music = null) {
+    // 检查权限
     const isEdit = !!music;
+    const action = isEdit ? 'update' : 'upload';
+    if (!window.checkPermission('media', action)) {
+        return;
+    }
+    
     const title = isEdit ? '🎵 编辑音乐' : '🎵 添加音乐';
     
     const content = `
@@ -1448,6 +1559,11 @@ async function saveMusicData() {
 }
 
 async function editMusic(id) {
+    // 检查权限
+    if (!window.checkPermission('media', 'update')) {
+        return;
+    }
+    
     console.log('editMusic 被调用, ID:', id);
     try {
         const music = await window.blogDataStore.getMusicById(id);
@@ -1522,6 +1638,11 @@ async function updateMusicData(id) {
 
 // 预览音乐
 function previewMusic(id) {
+    // 检查权限 - 预览属于读取权限
+    if (!window.checkPermission('media', 'read')) {
+        return;
+    }
+    
     const music = window.blogDataStore.getMusicById(id);
     if (!music) return;
 
@@ -1579,6 +1700,11 @@ function previewMusic(id) {
 }
 
 async function deleteMusicConfirm(id) {
+    // 检查权限
+    if (!window.checkPermission('media', 'delete')) {
+        return;
+    }
+    
     const music = await window.blogDataStore.getMusicById(id);
     if (!music) return;
 
@@ -1597,11 +1723,22 @@ async function deleteMusicConfirm(id) {
 
 // 添加视频
 document.getElementById('btnAddVideo')?.addEventListener('click', function() {
+    // 检查权限
+    if (!window.checkPermission('media', 'upload')) {
+        return;
+    }
+    
     showVideoForm();
 });
 
 function showVideoForm(video = null) {
+    // 检查权限
     const isEdit = !!video;
+    const action = isEdit ? 'update' : 'upload';
+    if (!window.checkPermission('media', action)) {
+        return;
+    }
+    
     const title = isEdit ? '🎬 编辑视频' : '🎬 添加视频';
     
     const content = `
@@ -1690,6 +1827,11 @@ async function saveVideoData() {
 }
 
 async function editVideo(id) {
+    // 检查权限
+    if (!window.checkPermission('media', 'update')) {
+        return;
+    }
+    
     console.log('editVideo 被调用, ID:', id);
     try {
         const video = await window.blogDataStore.getVideoById(id);
@@ -1734,6 +1876,11 @@ async function updateVideoData(id) {
 }
 
 async function deleteVideoConfirm(id) {
+    // 检查权限
+    if (!window.checkPermission('media', 'delete')) {
+        return;
+    }
+    
     const video = await window.blogDataStore.getVideoById(id);
     if (!video) return;
 
@@ -1829,6 +1976,11 @@ async function loadSettings() {
 
 // 上传头像文件
 function uploadAvatarFile() {
+    // 检查权限
+    if (!window.checkPermission('settings', 'update')) {
+        return;
+    }
+    
     document.getElementById('avatarFileInput').click();
 }
 
@@ -1865,6 +2017,11 @@ function handleAvatarFile(event) {
 
 // 更新头像预览
 function updateAvatar() {
+    // 检查权限
+    if (!window.checkPermission('settings', 'update')) {
+        return;
+    }
+    
     const avatarUrl = document.getElementById('avatarUrl').value.trim();
     
     if (!avatarUrl) {
@@ -1888,6 +2045,11 @@ function updateAvatar() {
 
 // 保存所有设置
 async function saveSettings() {
+    // 检查权限
+    if (!window.checkPermission('settings', 'update')) {
+        return;
+    }
+    
     const avatarUrl = document.getElementById('avatarUrl').value.trim();
     const siteName = document.getElementById('siteName').value.trim();
     const siteDescription = document.getElementById('siteDescription').value.trim();
@@ -2009,6 +2171,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // 显示导出菜单
 function showExportMenu(articleId, event) {
+    // 检查权限
+    if (!window.checkPermission('articles', 'read')) {
+        return;
+    }
+    
     event.stopPropagation();
     
     // 移除已有菜单
@@ -2161,6 +2328,11 @@ function renderAdminMessage(message) {
 
 // 切换留言置顶
 function toggleMessagePin(id) {
+    // 检查权限
+    if (!window.checkPermission('guestbook', 'update')) {
+        return;
+    }
+    
     const message = window.blogDataStore.toggleGuestbookPin(id);
     if (message) {
         showNotification(message.pinned ? '已置顶' : '已取消置顶', 'success');
@@ -2170,6 +2342,11 @@ function toggleMessagePin(id) {
 
 // 删除留言确认
 async function deleteMessageConfirm(id) {
+    // 检查权限
+    if (!window.checkPermission('guestbook', 'delete')) {
+        return;
+    }
+    
     if (confirm('确定要删除这条留言吗？此操作不可恢复。')) {
         try {
             await window.blogDataStore.deleteGuestbookMessage(id);
@@ -2242,6 +2419,11 @@ async function renderLinksTable() {
 
 // 显示添加友情链接模态框
 function showAddLinkModal() {
+    // 检查权限
+    if (!window.checkPermission('guestbook', 'create')) {
+        return;
+    }
+    
     document.getElementById('linkModalTitle').textContent = '添加友情链接';
     document.getElementById('linkForm').reset();
     document.getElementById('linkId').value = '';
@@ -2252,6 +2434,11 @@ function showAddLinkModal() {
 
 // 编辑友情链接
 async function editLink(id) {
+    // 检查权限
+    if (!window.checkPermission('guestbook', 'update')) {
+        return;
+    }
+    
     const link = await window.blogDataStore.getLinkById(id);
     if (!link) {
         showNotification('❌ 友情链接不存在', 'error');
@@ -2328,6 +2515,11 @@ function closeLinkModal() {
 
 // 删除友情链接确认
 async function deleteLinkConfirm(id) {
+    // 检查权限
+    if (!window.checkPermission('guestbook', 'delete')) {
+        return;
+    }
+    
     const link = await window.blogDataStore.getLinkById(id);
     if (!link) return;
 
@@ -2371,6 +2563,14 @@ function initDataSourceMode() {
 
 // 切换数据源模式
 async function toggleDataSourceMode() {
+    // 检查权限
+    if (!window.checkPermission('settings', 'update')) {
+        // 恢复复选框状态
+        const checkbox = document.getElementById('useApiMode');
+        checkbox.checked = !checkbox.checked;
+        return;
+    }
+    
     const checkbox = document.getElementById('useApiMode');
     const useApi = checkbox.checked;
     
@@ -2446,6 +2646,11 @@ function updateDataSourceStatus() {
 
 // 检查API服务器状态
 async function checkApiServerStatus(silent = false) {
+    // 检查权限 - 只有在非静默模式下才检查权限（静默模式用于内部调用）
+    if (!silent && !window.checkPermission('settings', 'read')) {
+        return false;
+    }
+    
     try {
         // 获取API基础URL
         const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
@@ -2477,6 +2682,11 @@ async function checkApiServerStatus(silent = false) {
 
 // 同步数据到JSON
 async function syncDataToJson() {
+    // 检查权限
+    if (!window.checkPermission('settings', 'update')) {
+        return;
+    }
+    
     // 检查API服务器
     const apiAvailable = await checkApiServerStatus(true);
     if (!apiAvailable) {

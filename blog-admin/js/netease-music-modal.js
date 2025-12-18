@@ -68,6 +68,11 @@ class NeteaseMusicModal {
     }
 
     open() {
+        // 检查权限
+        if (!window.checkPermission('media', 'upload')) {
+            return;
+        }
+        
         if (!this.modal) {
             console.error('模态框未初始化');
             return;
