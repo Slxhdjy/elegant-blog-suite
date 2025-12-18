@@ -1590,7 +1590,9 @@ async function backupData() {
     statusDiv.innerHTML = '⏳ 正在备份数据...';
     
     try {
-        const response = await fetch('http://localhost:3001/api/backup', {
+        // 获取API基础URL
+        const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+        const response = await fetch(`${apiBase}/backup`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1639,7 +1641,9 @@ async function backupData() {
 // 显示备份列表
 async function showBackupList() {
     try {
-        const response = await fetch('http://localhost:3001/api/backups');
+        // 获取API基础URL
+        const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+        const response = await fetch(`${apiBase}/backups`);
         const result = await response.json();
         
         if (!result.success) {

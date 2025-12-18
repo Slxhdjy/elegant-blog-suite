@@ -7,6 +7,27 @@ class BlogDataStore {
         this.initializeData();
     }
 
+    // 获取API基础URL
+    getApiBaseURL() {
+        // 优先使用环境适配器
+        if (window.environmentAdapter && window.environmentAdapter.apiBase) {
+            return window.environmentAdapter.apiBase;
+        }
+        
+        // 根据当前环境动态判断
+        const hostname = window.location.hostname;
+        if (hostname.includes('vercel.app') || 
+            hostname.includes('vercel.com') ||
+            hostname.includes('web3v.vip') || 
+            hostname.includes('slxhdjy.top')) {
+            return '/api'; // Vercel环境
+        } else if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
+            return 'http://localhost:3001/api'; // 本地环境
+        } else {
+            return '/api'; // 默认使用相对路径
+        }
+    }
+
     // 初始化数据
     initializeData() {
         // 检查用户配置
@@ -304,7 +325,7 @@ class BlogDataStore {
     
     // 🔥 同步数据到JSON文件（通过API服务器）
     async syncToJSONFiles(data) {
-        const apiBaseURL = 'http://localhost:3001/api';
+        const apiBaseURL = this.getApiBaseURL();
         
         // 检查API服务器是否可用
         try {
@@ -882,7 +903,8 @@ class BlogDataStore {
             
             // 尝试通过API保存到JSON文件
             try {
-                const response = await fetch('http://localhost:3001/api/images', {
+                const apiBase = this.getApiBaseURL();
+                const response = await fetch(`${apiBase}/images`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(image)
@@ -921,7 +943,8 @@ class BlogDataStore {
         try {
             // 尝试通过API更新JSON文件
             try {
-                const response = await fetch(`http://localhost:3001/api/images/${id}`, {
+                const apiBase = this.getApiBaseURL();
+                const response = await fetch(`${apiBase}/images/${id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(updates)
@@ -966,7 +989,8 @@ class BlogDataStore {
         try {
             // 尝试通过API删除JSON文件中的记录
             try {
-                const response = await fetch(`http://localhost:3001/api/images/${id}`, {
+                const apiBase = this.getApiBaseURL();
+                const response = await fetch(`${apiBase}/images/${id}`, {
                     method: 'DELETE'
                 });
                 

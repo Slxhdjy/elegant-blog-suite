@@ -120,7 +120,8 @@ class AdminEnvironmentAdapter {
             console.log(`🔍 尝试加载${resource}:`, url);
             const response = await fetch(url);
             if (!response.ok) {
-                throw new Error(`JSON file error: ${response.status}`);
+                console.warn(`⚠️ 无法加载${resource}.json (${response.status})，返回空数据`);
+                return resource === 'settings' ? {} : [];
             }
             
             const data = await response.json();
@@ -314,7 +315,14 @@ class AdminEnvironmentAdapter {
     
     // 显示静态模式提示
     showStaticModeNotice(message) {
+        // 避免重复显示相同的通知
+        const existingNotice = document.querySelector('.static-mode-notice');
+        if (existingNotice) {
+            return;
+        }
+        
         const notice = document.createElement('div');
+        notice.className = 'static-mode-notice';
         notice.style.cssText = `
             position: fixed; top: 20px; right: 20px; z-index: 10000;
             background: rgba(255, 193, 7, 0.9); color: #333;
@@ -329,14 +337,14 @@ class AdminEnvironmentAdapter {
                 <div>
                     <div style="font-weight: 500;">${message}</div>
                     <div style="font-size: 12px; opacity: 0.8; margin-top: 4px;">
-                        如需完整功能，请使用本地或Vercel部署
+                        当前环境: ${this.environment}
                     </div>
                 </div>
             </div>
         `;
         
         document.body.appendChild(notice);
-        setTimeout(() => notice.remove(), 4000);
+        setTimeout(() => notice.remove(), 5000);
     }
     
     // 检查是否支持写入操作

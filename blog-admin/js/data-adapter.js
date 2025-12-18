@@ -5,7 +5,8 @@
 
 class DataAdapter {
     constructor() {
-        this.apiBaseURL = 'http://localhost:3001/api';
+        // 动态获取API基础URL
+        this.apiBaseURL = this.getApiBaseURL();
         
         // 🔥 智能检测 JSON 文件路径
         // 如果当前页面在 blog-admin/pages/ 下，使用 ../../data
@@ -41,7 +42,29 @@ class DataAdapter {
         
         console.log(`数据适配层初始化 - 当前模式: ${this.useJSON ? 'JSON文件' : 'localStorage'}`);
         console.log(`📁 JSON文件路径: ${this.jsonBaseURL}`);
-        console.log('💡 提示：数据从 data/ 文件夹读取，保存需要API服务器（端口3001）');
+        console.log(`🌐 API基础URL: ${this.apiBaseURL}`);
+        console.log('💡 提示：数据从 data/ 文件夹读取，保存需要API服务器');
+    }
+
+    // 获取API基础URL
+    getApiBaseURL() {
+        // 优先使用环境适配器
+        if (window.environmentAdapter && window.environmentAdapter.apiBase) {
+            return window.environmentAdapter.apiBase;
+        }
+        
+        // 根据当前环境动态判断
+        const hostname = window.location.hostname;
+        if (hostname.includes('vercel.app') || 
+            hostname.includes('vercel.com') ||
+            hostname.includes('web3v.vip') || 
+            hostname.includes('slxhdjy.top')) {
+            return '/api'; // Vercel环境
+        } else if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
+            return 'http://localhost:3001/api'; // 本地环境
+        } else {
+            return '/api'; // 默认使用相对路径
+        }
     }
 
     // ========== 核心方法 ==========

@@ -4,8 +4,29 @@
    ======================================== */
 
 class FileUploader {
-    constructor(serverUrl = 'http://localhost:3001') {
-        this.serverUrl = serverUrl;
+    constructor(serverUrl = null) {
+        this.serverUrl = serverUrl || this.getApiBaseURL();
+    }
+
+    // 获取API基础URL
+    getApiBaseURL() {
+        // 优先使用环境适配器
+        if (window.environmentAdapter && window.environmentAdapter.apiBase) {
+            return window.environmentAdapter.apiBase.replace('/api', '');
+        }
+        
+        // 根据当前环境动态判断
+        const hostname = window.location.hostname;
+        if (hostname.includes('vercel.app') || 
+            hostname.includes('vercel.com') ||
+            hostname.includes('web3v.vip') || 
+            hostname.includes('slxhdjy.top')) {
+            return ''; // Vercel环境使用相对路径
+        } else if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
+            return 'http://localhost:3001'; // 本地环境
+        } else {
+            return ''; // 默认使用相对路径
+        }
     }
     
     // 上传单个图片

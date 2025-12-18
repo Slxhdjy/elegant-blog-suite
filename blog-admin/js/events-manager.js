@@ -15,7 +15,16 @@ class EventsManager {
     async loadEvents() {
         try {
             console.log('📡 正在加载重要事项...');
-            const response = await fetch('http://localhost:3001/api/events');
+            
+            // 使用环境适配器获取数据
+            if (window.environmentAdapter) {
+                this.events = await window.environmentAdapter.getData('events');
+                console.log(`✅ 通过环境适配器加载了 ${this.events.length} 个重要事项`);
+                return;
+            }
+            
+            // 降级到直接API调用
+            const response = await fetch('/api/events');
             
             if (!response.ok) {
                 console.error('❌ HTTP错误:', response.status, response.statusText);
@@ -343,7 +352,21 @@ class EventsManager {
     async saveEventsToAPI() {
         try {
             console.log('💾 正在保存重要事项...');
-            const response = await fetch('http://localhost:3001/api/events', {
+            
+            // 使用环境适配器保存数据
+            if (window.environmentAdapter && window.environmentAdapter.supportsWrite) {
+                const result = await window.environmentAdapter.saveData('events', this.events);
+                if (result.success) {
+                    console.log('✅ 通过环境适配器保存重要事项成功');
+                    return true;
+                } else {
+                    console.error('❌ 环境适配器保存失败:', result.message);
+                    return false;
+                }
+            }
+            
+            // 降级到直接API调用
+            const response = await fetch('/api/events/batch', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -386,5 +409,13 @@ class EventsManager {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
-    window.eventsManager = new EventsManager();
+    // 等待环境适配器初始化完成
+    if (window.environmentAdapter) {
+        window.eventsManager = new EventsManager();
+    } else {
+        // 如果环境适配器还没加载，等待一下
+        setTimeout(() => {
+            window.eventsManager = new EventsManager();
+        }, 100);
+    }
 });

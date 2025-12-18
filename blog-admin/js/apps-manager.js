@@ -41,8 +41,9 @@ class AppsAdminManager {
                 this.apps = this.apps.sort((a, b) => (a.order || 0) - (b.order || 0));
                 console.log(`✅ 从JSON文件加载了 ${this.apps.length} 个应用`);
             } else {
-                // 本地环境：使用API
-                const response = await fetch('/api/apps');
+                // 使用环境适配器获取API
+                const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+                const response = await fetch(`${apiBase}/apps`);
                 const result = await response.json();
                 
                 if (result.success) {
@@ -256,7 +257,8 @@ class AppsAdminManager {
             
             if (this.currentApp) {
                 // 更新现有应用
-                response = await fetch(`/api/apps/${this.currentApp.id}`, {
+                const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+                response = await fetch(`${apiBase}/apps/${this.currentApp.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
@@ -264,7 +266,8 @@ class AppsAdminManager {
             } else {
                 // 创建新应用
                 formData.createdAt = new Date().toISOString();
-                response = await fetch('/api/apps', {
+                const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+                response = await fetch(`${apiBase}/apps`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
@@ -300,7 +303,8 @@ class AppsAdminManager {
         const newStatus = app.status === 'enabled' ? 'disabled' : 'enabled';
         
         try {
-            const response = await fetch(`/api/apps/${appId}`, {
+            const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+            const response = await fetch(`${apiBase}/apps/${appId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...app, status: newStatus })
@@ -342,7 +346,8 @@ class AppsAdminManager {
                 return;
             }
             
-            const response = await fetch(`/api/apps/${appId}`, {
+            const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+            const response = await fetch(`${apiBase}/apps/${appId}`, {
                 method: 'DELETE'
             });
 

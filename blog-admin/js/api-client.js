@@ -3,8 +3,29 @@
    ======================================== */
 
 class APIClient {
-    constructor(baseURL = 'http://localhost:3001/api') {
-        this.baseURL = baseURL;
+    constructor(baseURL = null) {
+        this.baseURL = baseURL || this.getApiBaseURL();
+    }
+
+    // 获取API基础URL
+    getApiBaseURL() {
+        // 优先使用环境适配器
+        if (window.environmentAdapter && window.environmentAdapter.apiBase) {
+            return window.environmentAdapter.apiBase;
+        }
+        
+        // 根据当前环境动态判断
+        const hostname = window.location.hostname;
+        if (hostname.includes('vercel.app') || 
+            hostname.includes('vercel.com') ||
+            hostname.includes('web3v.vip') || 
+            hostname.includes('slxhdjy.top')) {
+            return '/api'; // Vercel环境
+        } else if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
+            return 'http://localhost:3001/api'; // 本地环境
+        } else {
+            return '/api'; // 默认使用相对路径
+        }
     }
 
     async request(endpoint, options = {}) {

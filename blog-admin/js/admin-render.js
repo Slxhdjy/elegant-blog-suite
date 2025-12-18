@@ -2433,7 +2433,9 @@ function updateDataSourceStatus() {
 // 检查API服务器状态
 async function checkApiServerStatus(silent = false) {
     try {
-        const response = await fetch('http://localhost:3001/api/health', {
+        // 获取API基础URL
+        const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+        const response = await fetch(`${apiBase}/health`, {
             method: 'GET',
             timeout: 3000
         });
@@ -2499,7 +2501,9 @@ async function syncDataToJson() {
                 const endpoint = type.key === 'blog_settings' ? type.endpoint : `${type.endpoint}/batch`;
                 const method = type.key === 'blog_settings' ? 'PUT' : 'POST';
                 
-                const response = await fetch(`http://localhost:3001/api/${endpoint}`, {
+                // 获取API基础URL
+                const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+                const response = await fetch(`${apiBase}/${endpoint}`, {
                     method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
