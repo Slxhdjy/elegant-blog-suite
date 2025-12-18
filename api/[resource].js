@@ -52,8 +52,11 @@ export default async function handler(req, res) {
         }
 
       case 'POST':
+        console.log('POST请求详情:', { url: req.url, resource, body: req.body });
+        
         if (req.url.includes('/batch')) {
           // 批量导入
+          console.log('执行批量导入操作');
           const data = req.body;
           await kv.set(resource, data);
           const count = Array.isArray(data) ? data.length : 1;
@@ -64,13 +67,17 @@ export default async function handler(req, res) {
           });
         } else {
           // 创建新项目
+          console.log('执行创建新项目操作');
+          
           if (resource === 'settings') {
             // settings直接更新
+            console.log('更新settings');
             await kv.set('settings', req.body);
             return res.json({ success: true, data: req.body });
           }
           
           const items = await kv.get(resource) || [];
+          console.log(`当前${resource}数据:`, items.length, '条');
           
           // 生成新ID
           let maxId = 0;
@@ -81,6 +88,7 @@ export default async function handler(req, res) {
             }
           });
           const newId = String(maxId + 1);
+          console.log('生成新ID:', newId);
           
           const newItem = {
             id: newId,
@@ -90,48 +98,65 @@ export default async function handler(req, res) {
           
           items.push(newItem);
           await kv.set(resource, items);
+          console.log(`${resource}保存成功，新增项目:`, newItem);
           
           return res.json({ success: true, data: newItem });
         }
 
       case 'PUT':
+        console.log('PUT请求详情:', { resource, id, body: req.body });
+        
         if (resource === 'settings') {
           // settings直接更新
+          console.log('更新settings');
           await kv.set('settings', req.body);
           return res.json({ success: true, data: req.body });
         }
         
         // 更新项目
         const items = await kv.get(resource) || [];
+        console.log(`当前${resource}数据:`, items.length, '条');
+        
         const index = items.findIndex(i => String(i.id) === String(id));
+        console.log('查找项目索引:', index, '目标ID:', id);
         
         if (index !== -1) {
+          const originalItem = items[index];
           items[index] = {
-            ...items[index],
+            ...originalItem,
             ...req.body,
             updatedAt: new Date().toISOString()
           };
           
           await kv.set(resource, items);
+          console.log(`${resource}更新成功:`, items[index]);
           return res.json({ success: true, data: items[index] });
         } else {
+          console.log('项目未找到，可用ID:', items.map(i => i.id));
           return res.status(404).json({ success: false, error: '项目未找到' });
         }
 
       case 'DELETE':
+        console.log('DELETE请求详情:', { resource, id });
+        
         if (resource === 'settings') {
           return res.status(400).json({ success: false, error: '不能删除设置' });
         }
         
         // 删除项目
         let allItems = await kv.get(resource) || [];
+        console.log(`删除前${resource}数据:`, allItems.length, '条');
+        
         const originalLength = allItems.length;
         allItems = allItems.filter(i => String(i.id) !== String(id));
+        console.log(`删除后${resource}数据:`, allItems.length, '条，目标ID:', id);
         
         if (allItems.length < originalLength) {
           await kv.set(resource, allItems);
+          console.log(`${resource}删除成功`);
           return res.json({ success: true, message: '项目已删除' });
         } else {
+          console.log('项目未找到，可用ID:', allItems.map(i => i.id));
           return res.status(404).json({ success: false, error: '项目未找到' });
         }
 

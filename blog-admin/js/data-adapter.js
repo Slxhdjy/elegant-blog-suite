@@ -85,6 +85,12 @@ class DataAdapter {
     // 保存到JSON文件（通过API）
     async saveDataToJSON(resource, data) {
         try {
+            // 优先使用环境适配器
+            if (window.environmentAdapter && window.environmentAdapter.supportsWrite) {
+                return await window.environmentAdapter.saveData(resource, data);
+            }
+            
+            // 回退到直接API调用
             // settings 是对象，使用 PUT；其他资源是数组，使用 POST batch
             let response;
             if (resource === 'settings') {
@@ -110,6 +116,57 @@ class DataAdapter {
             console.error(`❌ 保存 ${resource} 到JSON文件失败:`, error);
             throw error;
         }
+    }
+    
+    // 单项CRUD操作方法
+    async createItem(resource, item) {
+        if (window.environmentAdapter && window.environmentAdapter.supportsWrite) {
+            return await window.environmentAdapter.createItem(resource, item);
+        }
+        
+        // 回退到本地方法
+        const items = await this.getData(resource);
+        const newId = Math.max(...items.map(i => parseInt(i.id) || 0), 0) + 1;
+        const newItem = {
+            id: String(newId),
+            ...item,
+            createdAt: new Date().toISOString()
+        };
+        items.push(newItem);
+        await this.saveData(resource, items);
+        return { success: true, data: newItem };
+    }
+    
+    async updateItem(resource, id, updates) {
+        if (window.environmentAdapter && window.environmentAdapter.supportsWrite) {
+            return await window.environmentAdapter.updateItem(resource, id, updates);
+        }
+        
+        // 回退到本地方法
+        const items = await this.getData(resource);
+        const index = items.findIndex(i => String(i.id) === String(id));
+        if (index !== -1) {
+            items[index] = {
+                ...items[index],
+                ...updates,
+                updatedAt: new Date().toISOString()
+            };
+            await this.saveData(resource, items);
+            return { success: true, data: items[index] };
+        }
+        return { success: false, message: '项目未找到' };
+    }
+    
+    async deleteItem(resource, id) {
+        if (window.environmentAdapter && window.environmentAdapter.supportsWrite) {
+            return await window.environmentAdapter.deleteItem(resource, id);
+        }
+        
+        // 回退到本地方法
+        const items = await this.getData(resource);
+        const filtered = items.filter(i => String(i.id) !== String(id));
+        await this.saveData(resource, filtered);
+        return { success: true, message: '删除成功' };
     }
 
     // 统一的数据保存方法
@@ -199,79 +256,59 @@ class DataAdapter {
     }
 
     async addArticle(article) {
-        if (this.useAPI) {
-            try {
-                const response = await fetch(`${this.apiBaseURL}/articles`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(article)
-                });
-                if (response.ok) {
-                    const result = await response.json();
-                    return result.data;
-                }
-            } catch (error) {
-                console.warn('API添加文章失败');
-            }
+        try {
+            // 使用新的CRUD方法
+            const result = await this.createItem('articles', {
+                ...article,
+                views: 0,
+                publishDate: article.publishDate || new Date().toISOString().split('T')[0]
+            });
+            return result.success ? result.data : null;
+        } catch (error) {
+            console.warn('API添加文章失败，使用本地存储');
+            // 回退到localStorage
+            const articles = await this.getArticles();
+            article.id = Math.max(...articles.map(a => parseInt(a.id) || 0), 0) + 1;
+            article.views = 0;
+            article.publishDate = article.publishDate || new Date().toISOString().split('T')[0];
+            articles.unshift(article);
+            await this.saveData('articles', articles);
+            return article;
         }
-        
-        // 回退到localStorage
-        const articles = await this.getArticles();
-        article.id = Math.max(...articles.map(a => a.id || 0), 0) + 1;
-        article.views = 0;
-        article.publishDate = article.publishDate || new Date().toISOString().split('T')[0];
-        articles.unshift(article);
-        await this.saveData('articles', articles);
-        return article;
     }
 
     async updateArticle(id, updates) {
-        if (this.useAPI) {
-            try {
-                const response = await fetch(`${this.apiBaseURL}/articles/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updates)
-                });
-                if (response.ok) {
-                    const result = await response.json();
-                    return result.data;
-                }
-            } catch (error) {
-                console.warn('API更新文章失败');
+        try {
+            // 使用新的CRUD方法
+            const result = await this.updateItem('articles', id, updates);
+            return result.success ? result.data : null;
+        } catch (error) {
+            console.warn('API更新文章失败，使用本地存储');
+            // 回退到localStorage
+            const articles = await this.getArticles();
+            const index = articles.findIndex(article => String(article.id) === String(id));
+            if (index !== -1) {
+                articles[index] = { ...articles[index], ...updates };
+                await this.saveData('articles', articles);
+                return articles[index];
             }
+            return null;
         }
-        
-        // 回退到localStorage
-        const articles = await this.getArticles();
-        const index = articles.findIndex(article => String(article.id) === String(id));
-        if (index !== -1) {
-            articles[index] = { ...articles[index], ...updates };
-            await this.saveData('articles', articles);
-            return articles[index];
-        }
-        return null;
     }
 
     async deleteArticle(id) {
-        if (this.useAPI) {
-            try {
-                const response = await fetch(`${this.apiBaseURL}/articles/${id}`, {
-                    method: 'DELETE'
-                });
-                if (response.ok) {
-                    return { success: true };
-                }
-            } catch (error) {
-                console.warn('API删除文章失败');
-            }
+        try {
+            // 使用新的CRUD方法
+            const result = await this.deleteItem('articles', id);
+            return result;
+        } catch (error) {
+            console.warn('API删除文章失败，使用本地存储');
+            // 回退到localStorage
+            const articles = await this.getArticles();
+            const filtered = articles.filter(article => String(article.id) !== String(id));
+            await this.saveData('articles', filtered);
+            return { success: true };
         }
-        
-        // 回退到localStorage
-        const articles = await this.getArticles();
-        const filtered = articles.filter(article => String(article.id) !== String(id));
-        await this.saveData('articles', filtered);
-        return { success: true };
     }
 
     // ========== 分类相关方法 ==========
@@ -281,75 +318,54 @@ class DataAdapter {
     }
 
     async addCategory(category) {
-        if (this.useAPI) {
-            try {
-                const response = await fetch(`${this.apiBaseURL}/categories`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(category)
-                });
-                if (response.ok) {
-                    const result = await response.json();
-                    return result.data;
-                }
-            } catch (error) {
-                console.warn('API添加分类失败');
-            }
+        try {
+            // 使用新的CRUD方法
+            const result = await this.createItem('categories', {
+                ...category,
+                count: 0
+            });
+            return result.success ? result.data : null;
+        } catch (error) {
+            console.warn('API添加分类失败，使用本地存储');
+            const categories = await this.getCategories();
+            category.id = Math.max(...categories.map(c => parseInt(c.id) || 0), 0) + 1;
+            category.count = 0;
+            categories.push(category);
+            await this.saveData('categories', categories);
+            return category;
         }
-        
-        const categories = await this.getCategories();
-        category.id = Math.max(...categories.map(c => c.id || 0), 0) + 1;
-        category.count = 0;
-        categories.push(category);
-        await this.saveData('categories', categories);
-        return category;
     }
 
     async updateCategory(id, updates) {
-        if (this.useAPI) {
-            try {
-                const response = await fetch(`${this.apiBaseURL}/categories/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updates)
-                });
-                if (response.ok) {
-                    const result = await response.json();
-                    return result.data;
-                }
-            } catch (error) {
-                console.warn('API更新分类失败');
+        try {
+            // 使用新的CRUD方法
+            const result = await this.updateItem('categories', id, updates);
+            return result.success ? result.data : null;
+        } catch (error) {
+            console.warn('API更新分类失败，使用本地存储');
+            const categories = await this.getCategories();
+            const index = categories.findIndex(cat => String(cat.id) === String(id));
+            if (index !== -1) {
+                categories[index] = { ...categories[index], ...updates };
+                await this.saveData('categories', categories);
+                return categories[index];
             }
+            return null;
         }
-        
-        const categories = await this.getCategories();
-        const index = categories.findIndex(cat => String(cat.id) === String(id));
-        if (index !== -1) {
-            categories[index] = { ...categories[index], ...updates };
-            await this.saveData('categories', categories);
-            return categories[index];
-        }
-        return null;
     }
 
     async deleteCategory(id) {
-        if (this.useAPI) {
-            try {
-                const response = await fetch(`${this.apiBaseURL}/categories/${id}`, {
-                    method: 'DELETE'
-                });
-                if (response.ok) {
-                    return { success: true };
-                }
-            } catch (error) {
-                console.warn('API删除分类失败');
-            }
+        try {
+            // 使用新的CRUD方法
+            const result = await this.deleteItem('categories', id);
+            return result;
+        } catch (error) {
+            console.warn('API删除分类失败，使用本地存储');
+            const categories = await this.getCategories();
+            const filtered = categories.filter(cat => String(cat.id) !== String(id));
+            await this.saveData('categories', filtered);
+            return { success: true };
         }
-        
-        const categories = await this.getCategories();
-        const filtered = categories.filter(cat => String(cat.id) !== String(id));
-        await this.saveData('categories', filtered);
-        return { success: true };
     }
 
     // ========== 标签相关方法 ==========
@@ -359,75 +375,54 @@ class DataAdapter {
     }
 
     async addTag(tag) {
-        if (this.useAPI) {
-            try {
-                const response = await fetch(`${this.apiBaseURL}/tags`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(tag)
-                });
-                if (response.ok) {
-                    const result = await response.json();
-                    return result.data;
-                }
-            } catch (error) {
-                console.warn('API添加标签失败');
-            }
+        try {
+            // 使用新的CRUD方法
+            const result = await this.createItem('tags', {
+                ...tag,
+                count: 0
+            });
+            return result.success ? result.data : null;
+        } catch (error) {
+            console.warn('API添加标签失败，使用本地存储');
+            const tags = await this.getTags();
+            tag.id = Math.max(...tags.map(t => parseInt(t.id) || 0), 0) + 1;
+            tag.count = 0;
+            tags.push(tag);
+            await this.saveData('tags', tags);
+            return tag;
         }
-        
-        const tags = await this.getTags();
-        tag.id = Math.max(...tags.map(t => t.id || 0), 0) + 1;
-        tag.count = 0;
-        tags.push(tag);
-        await this.saveData('tags', tags);
-        return tag;
     }
 
     async updateTag(id, updates) {
-        if (this.useAPI) {
-            try {
-                const response = await fetch(`${this.apiBaseURL}/tags/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updates)
-                });
-                if (response.ok) {
-                    const result = await response.json();
-                    return result.data;
-                }
-            } catch (error) {
-                console.warn('API更新标签失败');
+        try {
+            // 使用新的CRUD方法
+            const result = await this.updateItem('tags', id, updates);
+            return result.success ? result.data : null;
+        } catch (error) {
+            console.warn('API更新标签失败，使用本地存储');
+            const tags = await this.getTags();
+            const index = tags.findIndex(tag => String(tag.id) === String(id));
+            if (index !== -1) {
+                tags[index] = { ...tags[index], ...updates };
+                await this.saveData('tags', tags);
+                return tags[index];
             }
+            return null;
         }
-        
-        const tags = await this.getTags();
-        const index = tags.findIndex(tag => String(tag.id) === String(id));
-        if (index !== -1) {
-            tags[index] = { ...tags[index], ...updates };
-            await this.saveData('tags', tags);
-            return tags[index];
-        }
-        return null;
     }
 
     async deleteTag(id) {
-        if (this.useAPI) {
-            try {
-                const response = await fetch(`${this.apiBaseURL}/tags/${id}`, {
-                    method: 'DELETE'
-                });
-                if (response.ok) {
-                    return { success: true };
-                }
-            } catch (error) {
-                console.warn('API删除标签失败');
-            }
+        try {
+            // 使用新的CRUD方法
+            const result = await this.deleteItem('tags', id);
+            return result;
+        } catch (error) {
+            console.warn('API删除标签失败，使用本地存储');
+            const tags = await this.getTags();
+            const filtered = tags.filter(tag => String(tag.id) !== String(id));
+            await this.saveData('tags', filtered);
+            return { success: true };
         }
-        
-        const tags = await this.getTags();
-        const filtered = tags.filter(tag => String(tag.id) !== String(id));
-        await this.saveData('tags', filtered);
-        return { success: true };
     }
 
     // ========== 评论相关方法 ==========

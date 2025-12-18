@@ -1,0 +1,20 @@
+[33m35bcc1d[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31mgithub-pages/main[m[33m)[m 修复blog样式丢失 - 使用redirect代替rewrite确保路径正确
+[33m9a0f116[m 修复路径问题 - 将所有相对路径改为绝对路径，确保admin和blog都能正常访问
+[33m4c4cbb7[m 修复admin页面资源加载 - 添加base标签确保相对路径正确解析
+[33m389dba1[m 修复admin路径问题 - 使用rewrite确保静态资源正确加载
+[33m6c1fb59[m 更新留言板数据
+[33m7cf96de[m 大幅简化Vercel配置 - 使用redirects代替复杂的rewrites
+[33me80dde9[m 简化后台管理界面修复 - 创建专用环境适配器避免跨目录引用问题
+[33ma1a5811[m 修复后台管理界面问题 - 添加环境适配器和统一数据适配器
+[33m0564399[m 修复后台管理界面CSS加载问题 - 添加admin路径的静态资源路由
+[33m3ebe023[m 修复Vercel环境数据加载问题 - 统一使用环境适配器
+[33m8a2d086[m 更新数据同步API - 使用实际JSON文件数据
+[33m12d584f[m 添加数据重置同步API，支持清除并重新导入JSON数据
+[33ma35c9fd[m 修复Vercel路由：添加/pages/*路由规则，解决导航跳转问题
+[33m0f21740[m 修复Vercel路由配置：优化后台管理路径处理，解决静态资源加载问题
+[33md6dcd9d[m 添加本地JSON数据同步API，包含完整的应用数据
+[33mebb60c5[m 修复Vercel路由配置：添加blog页面导航和后台管理静态资源路由
+[33m5324ceb[m 修复迁移API HTTP方法限制，支持GET请求
+[33m1c6e735[m 添加健康检查API，用于测试Vercel Functions
+[33m0b80676[m 修复Vercel静态资源路径问题，添加CSS/JS/图片路由重写
+[33me7000a2[m 添加新域名slxhdjy.top到环境适配器

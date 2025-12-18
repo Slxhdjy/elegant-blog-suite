@@ -597,15 +597,75 @@ function closeModal() {
 }
 
 // 保存分类
-function saveCategory() {
-    showNotification('分类保存成功', 'success');
-    closeModal();
+async function saveCategory() {
+    try {
+        const form = document.querySelector('.modal-form');
+        const nameInput = form.querySelector('input[type="text"]');
+        const descInput = form.querySelector('textarea');
+        
+        if (!nameInput.value.trim()) {
+            showNotification('请输入分类名称', 'error');
+            return;
+        }
+        
+        const categoryData = {
+            name: nameInput.value.trim(),
+            description: descInput.value.trim()
+        };
+        
+        // 使用数据适配器保存
+        const result = await window.dataAdapter.addCategory(categoryData);
+        
+        if (result) {
+            showNotification('分类保存成功', 'success');
+            closeModal();
+            // 刷新分类列表（如果在分类页面）
+            const activePage = document.querySelector('.page-content.active');
+            if (activePage && activePage.id === 'page-categories') {
+                await loadCategoriesList();
+            }
+        } else {
+            showNotification('分类保存失败', 'error');
+        }
+    } catch (error) {
+        console.error('保存分类失败:', error);
+        showNotification('分类保存失败: ' + error.message, 'error');
+    }
 }
 
 // 保存标签
-function saveTag() {
-    showNotification('标签保存成功', 'success');
-    closeModal();
+async function saveTag() {
+    try {
+        const form = document.querySelector('.modal-form');
+        const nameInput = form.querySelector('input[type="text"]');
+        
+        if (!nameInput.value.trim()) {
+            showNotification('请输入标签名称', 'error');
+            return;
+        }
+        
+        const tagData = {
+            name: nameInput.value.trim()
+        };
+        
+        // 使用数据适配器保存
+        const result = await window.dataAdapter.addTag(tagData);
+        
+        if (result) {
+            showNotification('标签保存成功', 'success');
+            closeModal();
+            // 刷新标签列表（如果在标签页面）
+            const activePage = document.querySelector('.page-content.active');
+            if (activePage && activePage.id === 'page-tags') {
+                await loadTagsList();
+            }
+        } else {
+            showNotification('标签保存失败', 'error');
+        }
+    } catch (error) {
+        console.error('保存标签失败:', error);
+        showNotification('标签保存失败: ' + error.message, 'error');
+    }
 }
 
 // 发送回复
@@ -1252,6 +1312,225 @@ function handleUserManagementClick(event) {
     }
 }
 
+// 加载分类列表
+async function loadCategoriesList() {
+    try {
+        const categories = await window.dataAdapter.getCategories();
+        const tbody = document.getElementById('categoriesTable');
+        
+        if (!tbody) return;
+        
+        tbody.innerHTML = categories.map(category => `
+            <tr>
+                <td>${category.name}</td>
+                <td>${category.description || '-'}</td>
+                <td>${category.count || 0}</td>
+                <td>
+                    <button class="btn-icon" title="编辑" onclick="editCategory('${category.id}')">✏️</button>
+                    <button class="btn-icon" title="删除" onclick="deleteCategory('${category.id}')">🗑️</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('加载分类列表失败:', error);
+        showNotification('加载分类列表失败', 'error');
+    }
+}
+
+// 加载标签列表
+async function loadTagsList() {
+    try {
+        const tags = await window.dataAdapter.getTags();
+        const tagsGrid = document.querySelector('.tags-grid');
+        
+        if (!tagsGrid) return;
+        
+        tagsGrid.innerHTML = tags.map(tag => `
+            <div class="tag-card">
+                <div class="tag-name">${tag.name}</div>
+                <div class="tag-count">${tag.count || 0} 篇文章</div>
+                <div class="tag-actions">
+                    <button class="btn-icon" onclick="editTag('${tag.id}')">✏️</button>
+                    <button class="btn-icon" onclick="deleteTag('${tag.id}')">🗑️</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('加载标签列表失败:', error);
+        showNotification('加载标签列表失败', 'error');
+    }
+}
+
+// 编辑分类
+async function editCategory(id) {
+    try {
+        const categories = await window.dataAdapter.getCategories();
+        const category = categories.find(c => String(c.id) === String(id));
+        
+        if (!category) {
+            showNotification('分类不存在', 'error');
+            return;
+        }
+        
+        const categoryForm = `
+            <div class="modal-form">
+                <div class="form-group">
+                    <label>分类名称</label>
+                    <input type="text" class="form-control" value="${category.name}" placeholder="请输入分类名称">
+                </div>
+                <div class="form-group">
+                    <label>分类描述</label>
+                    <textarea class="form-control" rows="3" placeholder="请输入分类描述">${category.description || ''}</textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-primary" onclick="updateCategory('${id}')">保存</button>
+                    <button class="btn-secondary" onclick="closeModal()">取消</button>
+                </div>
+            </div>
+        `;
+        
+        showModal('编辑分类', categoryForm);
+    } catch (error) {
+        console.error('加载分类信息失败:', error);
+        showNotification('加载分类信息失败', 'error');
+    }
+}
+
+// 更新分类
+async function updateCategory(id) {
+    try {
+        const form = document.querySelector('.modal-form');
+        const nameInput = form.querySelector('input[type="text"]');
+        const descInput = form.querySelector('textarea');
+        
+        if (!nameInput.value.trim()) {
+            showNotification('请输入分类名称', 'error');
+            return;
+        }
+        
+        const updates = {
+            name: nameInput.value.trim(),
+            description: descInput.value.trim()
+        };
+        
+        const result = await window.dataAdapter.updateCategory(id, updates);
+        
+        if (result) {
+            showNotification('分类更新成功', 'success');
+            closeModal();
+            await loadCategoriesList();
+        } else {
+            showNotification('分类更新失败', 'error');
+        }
+    } catch (error) {
+        console.error('更新分类失败:', error);
+        showNotification('更新分类失败: ' + error.message, 'error');
+    }
+}
+
+// 删除分类
+async function deleteCategory(id) {
+    try {
+        if (!confirm('确定要删除这个分类吗？此操作不可恢复。')) {
+            return;
+        }
+        
+        const result = await window.dataAdapter.deleteCategory(id);
+        
+        if (result && result.success) {
+            showNotification('分类删除成功', 'success');
+            await loadCategoriesList();
+        } else {
+            showNotification('分类删除失败', 'error');
+        }
+    } catch (error) {
+        console.error('删除分类失败:', error);
+        showNotification('删除分类失败: ' + error.message, 'error');
+    }
+}
+
+// 编辑标签
+async function editTag(id) {
+    try {
+        const tags = await window.dataAdapter.getTags();
+        const tag = tags.find(t => String(t.id) === String(id));
+        
+        if (!tag) {
+            showNotification('标签不存在', 'error');
+            return;
+        }
+        
+        const tagForm = `
+            <div class="modal-form">
+                <div class="form-group">
+                    <label>标签名称</label>
+                    <input type="text" class="form-control" value="${tag.name}" placeholder="请输入标签名称">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-primary" onclick="updateTag('${id}')">保存</button>
+                    <button class="btn-secondary" onclick="closeModal()">取消</button>
+                </div>
+            </div>
+        `;
+        
+        showModal('编辑标签', tagForm);
+    } catch (error) {
+        console.error('加载标签信息失败:', error);
+        showNotification('加载标签信息失败', 'error');
+    }
+}
+
+// 更新标签
+async function updateTag(id) {
+    try {
+        const form = document.querySelector('.modal-form');
+        const nameInput = form.querySelector('input[type="text"]');
+        
+        if (!nameInput.value.trim()) {
+            showNotification('请输入标签名称', 'error');
+            return;
+        }
+        
+        const updates = {
+            name: nameInput.value.trim()
+        };
+        
+        const result = await window.dataAdapter.updateTag(id, updates);
+        
+        if (result) {
+            showNotification('标签更新成功', 'success');
+            closeModal();
+            await loadTagsList();
+        } else {
+            showNotification('标签更新失败', 'error');
+        }
+    } catch (error) {
+        console.error('更新标签失败:', error);
+        showNotification('更新标签失败: ' + error.message, 'error');
+    }
+}
+
+// 删除标签
+async function deleteTag(id) {
+    try {
+        if (!confirm('确定要删除这个标签吗？此操作不可恢复。')) {
+            return;
+        }
+        
+        const result = await window.dataAdapter.deleteTag(id);
+        
+        if (result && result.success) {
+            showNotification('标签删除成功', 'success');
+            await loadTagsList();
+        } else {
+            showNotification('标签删除失败', 'error');
+        }
+    } catch (error) {
+        console.error('删除标签失败:', error);
+        showNotification('删除标签失败: ' + error.message, 'error');
+    }
+}
+
 // 页面加载时初始化用户管理
 document.addEventListener('DOMContentLoaded', function() {
     // 防止重复绑定的标记
@@ -1266,6 +1545,24 @@ document.addEventListener('DOMContentLoaded', function() {
         usersNavItem.setAttribute('data-users-bound', 'true');
         usersNavItem.addEventListener('click', function() {
             setTimeout(loadUsersList, 100);
+        });
+    }
+    
+    // 监听页面切换到分类管理时加载列表
+    const categoriesNavItem = document.querySelector('.nav-item[data-page="categories"]');
+    if (categoriesNavItem && !categoriesNavItem.hasAttribute('data-categories-bound')) {
+        categoriesNavItem.setAttribute('data-categories-bound', 'true');
+        categoriesNavItem.addEventListener('click', function() {
+            setTimeout(loadCategoriesList, 100);
+        });
+    }
+    
+    // 监听页面切换到标签管理时加载列表
+    const tagsNavItem = document.querySelector('.nav-item[data-page="tags"]');
+    if (tagsNavItem && !tagsNavItem.hasAttribute('data-tags-bound')) {
+        tagsNavItem.setAttribute('data-tags-bound', 'true');
+        tagsNavItem.addEventListener('click', function() {
+            setTimeout(loadTagsList, 100);
         });
     }
     
