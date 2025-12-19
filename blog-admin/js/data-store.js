@@ -2,6 +2,7 @@
 class BlogDataStore {
     constructor() {
         this.useJSONFiles = true; // 默认使用 JSON 文件
+        this.useApi = false; // 默认不使用 API
         this.jsonBaseURL = '../data'; // JSON 文件目录
         this.dataLoaded = false; // 数据是否已加载
         this.initializeData();
@@ -38,7 +39,7 @@ class BlogDataStore {
                            hostname.includes('web3v.vip') || 
                            hostname.includes('slxhdjy.top');
         
-        console.log('🔍 环境检测详情:', {
+        console.log('🔍 BlogDataStore环境检测详情:', {
             hostname: hostname,
             isVercelApp: hostname.includes('vercel.app'),
             isVercelCom: hostname.includes('vercel.com'),
@@ -50,14 +51,18 @@ class BlogDataStore {
         if (isVercelEnv) {
             this.useJSONFiles = false;
             console.log('🚫 Vercel环境检测：强制禁用JSON文件模式，使用KV数据库');
+            // 设置API模式标志
+            this.useApi = true;
         } else {
             // 检查用户配置
             const userConfig = localStorage.getItem('use_json_mode');
             if (userConfig === 'false') {
                 this.useJSONFiles = false;
-                console.log('💾 使用 localStorage 存储');
+                this.useApi = true;
+                console.log('💾 使用 API 模式');
             } else {
                 this.useJSONFiles = true;
+                this.useApi = false;
                 console.log('📁 使用 JSON 文件存储');
             }
         }
@@ -289,18 +294,25 @@ class BlogDataStore {
             hostname: hostname,
             isVercelEnv: isVercelEnv,
             useJSONFiles: this.useJSONFiles,
+            useApi: this.useApi,
             dataLoaded: this.dataLoaded
         });
         
+        // 强制检查：如果是Vercel环境，绝对不加载JSON文件
+        if (isVercelEnv) {
+            console.log('🚫 Vercel环境：绝对禁止JSON文件加载，直接返回localStorage缓存');
+            this.useJSONFiles = false;
+            this.useApi = true;
+            return this.getAllData();
+        }
+        
+        // 只有在非Vercel环境且明确配置使用JSON文件时才加载
         if (this.useJSONFiles && !this.dataLoaded && !isVercelEnv) {
             console.log('📁 从JSON文件加载数据 (非Vercel环境)');
             return await this.loadDataFromJSON();
         }
         
-        if (isVercelEnv && this.useJSONFiles) {
-            console.log('🚫 Vercel环境：跳过JSON文件加载，使用localStorage缓存');
-        }
-        
+        console.log('💾 使用localStorage缓存数据');
         return this.getAllData();
     }
 
@@ -1101,9 +1113,17 @@ class BlogDataStore {
 
     // 设置相关方法
     async getSettings() {
-        if (this.useApi) {
+        // 强制检查Vercel环境
+        const hostname = window.location.hostname;
+        const isVercelEnv = hostname.includes('vercel.app') || 
+                           hostname.includes('vercel.com') ||
+                           hostname.includes('web3v.vip') || 
+                           hostname.includes('slxhdjy.top');
+        
+        if (this.useApi || isVercelEnv) {
             try {
                 const apiBase = this.getApiBaseURL();
+                console.log('🔍 获取设置 - API调用:', apiBase + '/settings');
                 const response = await fetch(`${apiBase}/settings`);
                 
                 if (!response.ok) {
@@ -1115,12 +1135,13 @@ class BlogDataStore {
                 }
                 
                 const result = await response.json();
+                console.log('✅ API获取设置成功:', Object.keys(result.data || {}).length, '个字段');
                 return result.success ? result.data : {};
             } catch (error) {
                 console.error('❌ API获取设置失败:', error);
                 
                 // 在Vercel环境下不降级到localStorage，避免JSON数据覆盖KV数据
-                if (window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
+                if (isVercelEnv) {
                     console.warn('⚠️ Vercel环境下不使用localStorage数据，返回空设置');
                     return {};
                 }
@@ -1131,6 +1152,8 @@ class BlogDataStore {
                 return data.settings || {};
             }
         }
+        
+        console.log('💾 从localStorage获取设置');
         const data = this.getAllData();
         return data.settings || {};
     }

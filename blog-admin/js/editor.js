@@ -15,16 +15,32 @@ class ArticleEditor {
     async init() {
         this.initElements();
         
-        // 🔥 在Vercel环境下禁用JSON文件加载，避免覆盖KV数据
+        // 🔥 在Vercel环境下完全禁用JSON文件加载，避免覆盖KV数据
         console.log('=== 编辑器初始化 ===');
-        const isVercelEnv = window.environmentAdapter && window.environmentAdapter.environment === 'vercel';
         
-        if (window.blogDataStore.useJSONFiles && !isVercelEnv) {
-            console.log('📁 从 JSON 文件加载数据...');
+        // 强化环境检测：多重检查确保在Vercel环境下不加载JSON
+        const hostname = window.location.hostname;
+        const isVercelEnv = hostname.includes('vercel.app') || 
+                           hostname.includes('vercel.com') ||
+                           hostname.includes('web3v.vip') || 
+                           hostname.includes('slxhdjy.top') ||
+                           (window.environmentAdapter && window.environmentAdapter.environment === 'vercel');
+        
+        console.log('🔍 编辑器环境检测:', {
+            hostname: hostname,
+            environmentAdapter: window.environmentAdapter?.environment,
+            isVercelEnv: isVercelEnv,
+            useJSONFiles: window.blogDataStore.useJSONFiles
+        });
+        
+        if (isVercelEnv) {
+            console.log('🚫 Vercel环境：强制禁用JSON文件加载，避免覆盖KV数据');
+            // 强制设置为不使用JSON文件
+            window.blogDataStore.useJSONFiles = false;
+        } else if (window.blogDataStore.useJSONFiles) {
+            console.log('📁 本地环境：从 JSON 文件加载数据...');
             await window.blogDataStore.getAllDataAsync();
             console.log('✅ 数据加载完成');
-        } else if (isVercelEnv) {
-            console.log('🚫 Vercel环境下跳过JSON文件加载，避免覆盖KV数据');
         }
         
         await this.loadCategories(); // 先加载分类列表
