@@ -2837,7 +2837,7 @@ function renderGuestbookUI(messages, messagesList) {
         hasData: messages?.data,
         dataType: typeof messages?.data,
         isDataArray: Array.isArray(messages?.data),
-        sample: messages
+        sample: messages?.slice ? messages.slice(0, 2) : messages // 只显示前2条作为样本
     });
     
     // 数据类型检查和修复
@@ -2863,6 +2863,26 @@ function renderGuestbookUI(messages, messagesList) {
     
     console.log('✅ 最终处理的留言数据:', Array.isArray(messages) ? `${messages.length}条` : typeof messages);
     
+    // 数据验证：检查每条留言的完整性
+    const validMessages = [];
+    const invalidMessages = [];
+    
+    messages.forEach((msg, index) => {
+        if (msg && msg.id && msg.author && msg.content) {
+            validMessages.push(msg);
+        } else {
+            console.warn(`⚠️ 第${index + 1}条留言数据不完整:`, msg);
+            invalidMessages.push({ index, msg });
+        }
+    });
+    
+    console.log('📊 留言数据验证结果:', {
+        total: messages.length,
+        valid: validMessages.length,
+        invalid: invalidMessages.length,
+        invalidDetails: invalidMessages
+    });
+    
     // 清除旧的事件监听器标记，确保重新渲染后能重新绑定事件
     const guestbookContainer = document.querySelector('#page-guestbook .guestbook-container');
     if (guestbookContainer) {
@@ -2871,6 +2891,64 @@ function renderGuestbookUI(messages, messagesList) {
     
     // 安全地更新统计
     const totalMessagesEl = document.getElementById('totalMessages');
+    const pinnedMessagesEl = document.getElementById('pinnedMessages');
+    const totalLikesEl = document.getElementById('totalLikes');
+    
+    if (totalMessagesEl) totalMessagesEl.textContent = validMessages.length;
+    if (pinnedMessagesEl) pinnedMessagesEl.textContent = validMessages.filter(m => m.pinned).length;
+    if (totalLikesEl) totalLikesEl.textContent = validMessages.reduce((sum, m) => sum + (m.likes || 0), 0);
+    
+    if (validMessages.length === 0) {
+        const emptyMessage = messages.length > 0 ? 
+            `暂无有效留言（共${messages.length}条数据，但格式不正确）` : 
+            '暂无留言';
+            
+        messagesList.innerHTML = `
+            <div style="text-align: center; padding: 3rem; color: #999;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📝</div>
+                <p>${emptyMessage}</p>
+                ${invalidMessages.length > 0 ? `
+                    <details style="margin-top: 1rem; text-align: left; background: #fff3cd; padding: 1rem; border-radius: 8px;">
+                        <summary style="cursor: pointer; font-weight: bold; color: #856404;">查看无效数据详情 (${invalidMessages.length}条)</summary>
+                        <pre style="margin-top: 0.5rem; font-size: 0.8rem; overflow: auto;">${JSON.stringify(invalidMessages, null, 2)}</pre>
+                    </details>
+                ` : ''}
+            </div>
+        `;
+        return;
+    }
+    
+    // 分离置顶和普通留言
+    const pinnedMessages = validMessages.filter(m => m.pinned);
+    const normalMessages = validMessages.filter(m => !m.pinned);
+    
+    console.log('📌 留言分类:', {
+        pinned: pinnedMessages.length,
+        normal: normalMessages.length
+    });
+    
+    try {
+        messagesList.innerHTML = [
+            ...pinnedMessages.map(msg => renderAdminMessage(msg)),
+            ...normalMessages.map(msg => renderAdminMessage(msg))
+        ].join('');
+        
+        console.log('✅ 留言HTML渲染完成');
+    } catch (error) {
+        console.error('❌ 留言HTML渲染失败:', error);
+        messagesList.innerHTML = `
+            <div style="text-align: center; padding: 3rem; color: #f44336;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+                <p>留言渲染失败: ${error.message}</p>
+                <button class="btn-primary" onclick="renderGuestbookMessages()" style="margin-top: 1rem;">重试</button>
+            </div>
+        `;
+        return;
+    }
+    
+    // 设置事件委托处理留言按钮点击
+    setupGuestbookButtonHandlers();
+}
     const pinnedMessagesEl = document.getElementById('pinnedMessages');
     const totalLikesEl = document.getElementById('totalLikes');
     
@@ -2903,49 +2981,81 @@ function renderGuestbookUI(messages, messagesList) {
 
 // 渲染单条留言（后台）
 function renderAdminMessage(message) {
-    // 兼容 time 和 createdAt 两种字段名
-    const messageTime = message.time || message.createdAt;
-    const timeAgo = getTimeAgo(new Date(messageTime));
-    const initial = message.author.charAt(0).toUpperCase();
-    
-    return `
-        <div class="admin-message-item guestbook-item ${message.pinned ? 'pinned' : ''}" data-id="${message.id}">
-            <div class="message-content-wrapper">
-                <div class="message-avatar">${initial}</div>
-                <div class="message-body">
-                    <div class="message-header">
-                        <div class="message-author-info">
-                            <div class="message-author-name">
-                                ${message.author}
-                                ${message.pinned ? '<span class="pinned-badge">📌 置顶</span>' : ''}
+    try {
+        // 数据验证和清理
+        if (!message || !message.id || !message.author || !message.content) {
+            console.warn('⚠️ 留言数据不完整:', message);
+            return '';
+        }
+        
+        // 兼容 time 和 createdAt 两种字段名
+        const messageTime = message.time || message.createdAt;
+        let timeAgo = '未知时间';
+        
+        if (messageTime) {
+            try {
+                const date = new Date(messageTime);
+                if (!isNaN(date.getTime())) {
+                    timeAgo = getTimeAgo(date);
+                } else {
+                    console.warn('⚠️ 无效的时间格式:', messageTime);
+                }
+            } catch (error) {
+                console.warn('⚠️ 时间解析失败:', messageTime, error);
+            }
+        }
+        
+        const initial = (message.author || '?').charAt(0).toUpperCase();
+        const isPinned = Boolean(message.pinned); // 确保是布尔值
+        
+        return `
+            <div class="admin-message-item guestbook-item ${isPinned ? 'pinned' : ''}" data-id="${message.id}">
+                <div class="message-content-wrapper">
+                    <div class="message-avatar">${initial}</div>
+                    <div class="message-body">
+                        <div class="message-header">
+                            <div class="message-author-info">
+                                <div class="message-author-name">
+                                    ${escapeHtml(message.author)}
+                                    ${isPinned ? '<span class="pinned-badge">📌 置顶</span>' : ''}
+                                </div>
+                                <div class="message-meta">
+                                    ${timeAgo}
+                                    ${message.email ? ` · ${escapeHtml(message.email)}` : ''}
+                                </div>
                             </div>
-                            <div class="message-meta">
-                                ${timeAgo}
-                                ${message.email ? ` · ${message.email}` : ''}
+                            <div class="message-actions">
+                                <button class="btn-icon guestbook-pin-btn" data-message-id="${message.id}" title="${isPinned ? '取消置顶' : '置顶'}">
+                                    ${isPinned ? '📌' : '📍'}
+                                </button>
+                                <button class="btn-icon guestbook-delete-btn" data-message-id="${message.id}" title="删除">
+                                    🗑️
+                                </button>
                             </div>
                         </div>
-                        <div class="message-actions">
-                            <button class="btn-icon guestbook-pin-btn" data-message-id="${message.id}" title="${message.pinned ? '取消置顶' : '置顶'}">
-                                ${message.pinned ? '📌' : '📍'}
-                            </button>
-                            <button class="btn-icon guestbook-delete-btn" data-message-id="${message.id}" title="删除">
-                                🗑️
-                            </button>
+                        <div class="message-text">
+                            ${escapeHtml(message.content)}
                         </div>
-                    </div>
-                    <div class="message-text">
-                        ${escapeHtml(message.content)}
-                    </div>
-                    <div class="message-footer">
-                        <span class="message-likes">
-                            <span>❤️</span>
-                            <span>${message.likes || 0} 个赞</span>
-                        </span>
+                        <div class="message-footer">
+                            <span class="message-likes">
+                                <span>❤️</span>
+                                <span>${message.likes || 0} 个赞</span>
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    `;
+        `;
+    } catch (error) {
+        console.error('❌ 渲染留言失败:', error, message);
+        return `
+            <div class="admin-message-item error" data-id="${message?.id || 'unknown'}">
+                <div style="padding: 1rem; color: #f44336; background: #ffebee; border-radius: 8px;">
+                    ⚠️ 留言渲染失败: ${error.message}
+                </div>
+            </div>
+        `;
+    }
 }
 
 // 设置留言按钮事件处理器（使用事件委托）
