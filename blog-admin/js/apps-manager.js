@@ -21,12 +21,12 @@ class AppsAdminManager {
         try {
             console.log('📱 开始加载应用数据...');
             
-            // 优先使用环境适配器
-            if (window.environmentAdapter && window.environmentAdapter.initialized) {
-                console.log('🌍 使用环境适配器加载应用数据');
-                this.apps = await window.environmentAdapter.getData('apps');
+            // 使用统一的数据存储
+            if (window.blogDataStore && window.blogDataStore.getAppsAsync) {
+                console.log('🌍 使用数据存储加载应用数据');
+                this.apps = await window.blogDataStore.getAppsAsync();
                 this.apps = this.apps.sort((a, b) => (a.order || 0) - (b.order || 0));
-                console.log(`✅ 从环境适配器加载了 ${this.apps.length} 个应用`);
+                console.log(`✅ 从数据存储加载了 ${this.apps.length} 个应用`);
                 return;
             }
             
@@ -184,17 +184,45 @@ class AppsAdminManager {
         const action = button.dataset.action;
         const appId = button.dataset.appId;
 
+        console.log('🖱️ 应用管理器按钮点击:', { action, appId });
+
+        // 检查权限管理器是否就绪
+        if (!window.checkPermission) {
+            console.error('❌ 权限管理器未就绪');
+            return;
+        }
+
         switch (action) {
             case 'add-app':
+                console.log('🔍 检查应用创建权限...');
+                if (!window.checkPermission('apps', 'create')) {
+                    console.log('❌ 权限不足，阻止创建操作');
+                    return;
+                }
                 this.showAppModal();
                 break;
             case 'edit':
+                console.log('🔍 检查应用编辑权限...');
+                if (!window.checkPermission('apps', 'update')) {
+                    console.log('❌ 权限不足，阻止编辑操作');
+                    return;
+                }
                 this.editApp(appId);
                 break;
             case 'toggle':
+                console.log('🔍 检查应用状态切换权限...');
+                if (!window.checkPermission('apps', 'update')) {
+                    console.log('❌ 权限不足，阻止状态切换操作');
+                    return;
+                }
                 this.toggleStatus(appId);
                 break;
             case 'delete':
+                console.log('🔍 检查应用删除权限...');
+                if (!window.checkPermission('apps', 'delete')) {
+                    console.log('❌ 权限不足，阻止删除操作');
+                    return;
+                }
                 this.deleteApp(appId);
                 break;
         }
@@ -304,60 +332,25 @@ class AppsAdminManager {
                 return;
             }
             
-            let response;
-            
-            // 在Vercel环境下，只使用环境适配器，不回退
-            if (window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
-                console.log('🌐 Vercel环境：使用环境适配器保存应用');
+            // 使用统一的数据存储
+            if (window.blogDataStore) {
+                console.log('💾 使用数据存储保存应用');
                 
                 if (this.currentApp) {
                     // 更新现有应用
-                    const result = await window.environmentAdapter.updateItem('apps', this.currentApp.id, formData);
-                    if (!result.success) {
-                        throw new Error(result.message || '更新应用失败');
-                    }
+                    await window.blogDataStore.updateApp(this.currentApp.id, formData);
+                    console.log('✅ 应用更新成功');
                 } else {
                     // 创建新应用
-                    formData.createdAt = new Date().toISOString();
-                    const result = await window.environmentAdapter.createItem('apps', formData);
-                    if (!result.success) {
-                        throw new Error(result.message || '创建应用失败');
-                    }
+                    await window.blogDataStore.addApp(formData);
+                    console.log('✅ 应用创建成功');
                 }
                 
-                // 模拟response对象
-                response = { ok: true, json: async () => ({ success: true }) };
-            } else {
-                // 非Vercel环境的处理
-                if (this.currentApp) {
-                    // 更新现有应用
-                    const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
-                    response = await fetch(`${apiBase}/apps/${this.currentApp.id}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(formData)
-                    });
-                } else {
-                    // 创建新应用
-                    formData.createdAt = new Date().toISOString();
-                    const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
-                    response = await fetch(`${apiBase}/apps`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(formData)
-                    });
-                }
-            }
-
-            const result = await response.json();
-            
-            if (result.success) {
-                console.log('✅ 应用保存成功');
                 await this.loadApps();
                 this.renderApps();
                 this.hideAppModal();
             } else {
-                alert('保存失败: ' + (result.message || '未知错误'));
+                throw new Error('数据存储未初始化');
             }
         } catch (error) {
             console.error('❌ 保存应用出错:', error);
@@ -367,56 +360,32 @@ class AppsAdminManager {
 
     // 编辑应用
     editApp(appId) {
-        // 检查权限
-        if (!window.checkPermission('apps', 'update')) {
-            return;
-        }
-        
+        console.log('✏️ 编辑应用, ID:', appId);
         this.showAppModal(appId);
     }
 
     // 切换应用状态
     async toggleStatus(appId) {
-        // 检查权限
-        if (!window.checkPermission('apps', 'update')) {
-            return;
-        }
+        console.log('🔄 切换应用状态, ID:', appId);
         
         const app = this.apps.find(a => a.id === appId);
-        if (!app) return;
+        if (!app) {
+            console.error('❌ 未找到应用, ID:', appId);
+            return;
+        }
 
         const newStatus = app.status === 'enabled' ? 'disabled' : 'enabled';
         
         try {
-            // 在Vercel环境下，只使用环境适配器，不回退
-            if (window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
-                console.log('🌐 Vercel环境：使用环境适配器切换应用状态');
-                const result = await window.environmentAdapter.updateItem('apps', appId, { ...app, status: newStatus });
-                if (result.success) {
-                    console.log(`✅ 应用状态已更新为: ${newStatus}`);
-                    await this.loadApps();
-                    this.renderApps();
-                } else {
-                    throw new Error(result.message || '状态更新失败');
-                }
+            // 使用统一的数据存储
+            if (window.blogDataStore) {
+                console.log('💾 使用数据存储切换应用状态');
+                await window.blogDataStore.updateApp(appId, { ...app, status: newStatus });
+                console.log(`✅ 应用状态已更新为: ${newStatus}`);
+                await this.loadApps();
+                this.renderApps();
             } else {
-                // 非Vercel环境的处理
-                const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
-                const response = await fetch(`${apiBase}/apps/${appId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...app, status: newStatus })
-                });
-
-                const result = await response.json();
-                
-                if (result.success) {
-                    console.log(`✅ 应用状态已更新为: ${newStatus}`);
-                    await this.loadApps();
-                    this.renderApps();
-                } else {
-                    alert('状态更新失败');
-                }
+                throw new Error('数据存储未初始化');
             }
         } catch (error) {
             console.error('❌ 更新状态出错:', error);
@@ -426,55 +395,37 @@ class AppsAdminManager {
 
     // 删除应用
     async deleteApp(appId) {
-        // 检查权限
-        if (!window.checkPermission('apps', 'delete')) {
-            return;
-        }
+        console.log('🗑️ 删除应用, ID:', appId);
         
         const app = this.apps.find(a => a.id === appId);
-        if (!app) return;
+        if (!app) {
+            console.error('❌ 未找到应用, ID:', appId);
+            return;
+        }
 
         if (!confirm(`确定要删除应用"${app.name}"吗？`)) {
             return;
         }
 
         try {
-            // 在Vercel环境下，只使用环境适配器，不回退
-            if (window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
-                console.log('🌐 Vercel环境：使用环境适配器删除应用');
-                const result = await window.environmentAdapter.deleteItem('apps', appId);
-                if (result.success) {
-                    console.log('✅ 应用已删除');
-                    await this.loadApps();
-                    this.renderApps();
-                } else {
-                    throw new Error(result.message || '删除应用失败');
-                }
+            // 检查是否为真正的静态环境（只有GitHub Pages是纯静态的）
+            const isStaticOnly = window.location.hostname.includes('github.io');
+            
+            if (isStaticOnly) {
+                // 纯静态环境：显示提示信息
+                alert('静态部署环境下无法删除应用，请在本地环境使用完整功能');
+                return;
+            }
+            
+            // 使用统一的数据存储
+            if (window.blogDataStore) {
+                console.log('💾 使用数据存储删除应用');
+                await window.blogDataStore.deleteApp(appId);
+                console.log('✅ 应用已删除');
+                await this.loadApps();
+                this.renderApps();
             } else {
-                // 非Vercel环境的处理
-                // 检查是否为真正的静态环境（只有GitHub Pages是纯静态的）
-                const isStaticOnly = window.location.hostname.includes('github.io');
-                
-                if (isStaticOnly) {
-                    // 纯静态环境：显示提示信息
-                    alert('静态部署环境下无法删除应用，请在本地环境使用完整功能');
-                    return;
-                }
-                
-                const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
-                const response = await fetch(`${apiBase}/apps/${appId}`, {
-                    method: 'DELETE'
-                });
-
-                const result = await response.json();
-                
-                if (result.success) {
-                    console.log('✅ 应用已删除');
-                    await this.loadApps();
-                    this.renderApps();
-                } else {
-                    alert('删除失败');
-                }
+                throw new Error('数据存储未初始化');
             }
         } catch (error) {
             console.error('❌ 删除应用出错:', error);
@@ -508,7 +459,8 @@ function safeShowAppModal() {
     console.log('🎯 safeShowAppModal 被调用');
     
     // 检查权限
-    if (!window.checkPermission('apps', 'create')) {
+    if (!window.checkPermission || !window.checkPermission('apps', 'create')) {
+        console.log('❌ 权限不足或权限管理器未就绪');
         return;
     }
     
@@ -528,3 +480,59 @@ function safeShowAppModal() {
 
 // 将函数添加到全局作用域
 window.safeShowAppModal = safeShowAppModal;
+
+// 调试函数：检查应用管理器状态
+window.debugAppsManager = function() {
+    console.log('🔍 应用管理器调试信息:');
+    console.log('appsAdminManager 存在:', !!window.appsAdminManager);
+    console.log('apps 数量:', window.appsAdminManager?.apps?.length || 0);
+    
+    const container = document.getElementById('appsManageGrid');
+    console.log('容器存在:', !!container);
+    console.log('容器内容:', container?.innerHTML?.substring(0, 200) + '...');
+    
+    const buttons = document.querySelectorAll('#appsManageGrid button[data-action]');
+    console.log('找到按钮数量:', buttons.length);
+    
+    buttons.forEach((btn, index) => {
+        console.log(`按钮 ${index + 1}:`, {
+            action: btn.dataset.action,
+            appId: btn.dataset.appId,
+            title: btn.title
+        });
+    });
+    
+    // 检查权限
+    console.log('权限检查:');
+    console.log('apps.create:', window.checkPermission('apps', 'create'));
+    console.log('apps.update:', window.checkPermission('apps', 'update'));
+    console.log('apps.delete:', window.checkPermission('apps', 'delete'));
+};
+
+// 调试函数：手动测试应用操作
+window.manualTestApp = function(appId, action) {
+    console.log(`🧪 手动测试应用操作: ${action}, ID: ${appId}`);
+    
+    if (!window.appsAdminManager) {
+        console.error('❌ appsAdminManager 不存在');
+        return;
+    }
+    
+    try {
+        switch (action) {
+            case 'edit':
+                window.appsAdminManager.editApp(appId);
+                break;
+            case 'toggle':
+                window.appsAdminManager.toggleStatus(appId);
+                break;
+            case 'delete':
+                window.appsAdminManager.deleteApp(appId);
+                break;
+            default:
+                console.error('❌ 未知操作:', action);
+        }
+    } catch (error) {
+        console.error('❌ 手动测试失败:', error);
+    }
+};

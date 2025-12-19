@@ -905,6 +905,26 @@ class BlogDataStore {
         return data.guestbook || [];
     }
     
+    // 🔥 异步获取留言（优先从 API）
+    async getGuestbookMessagesAsync() {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/guestbook`);
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 从API获取留言数据:', result.data?.length || 0, '条');
+                return result.data || [];
+            } else {
+                console.warn('⚠️ API获取留言失败，使用缓存数据');
+                return this.getGuestbookMessages();
+            }
+        } catch (error) {
+            console.warn('⚠️ API获取留言失败，使用缓存数据:', error.message);
+            return this.getGuestbookMessages();
+        }
+    }
+    
     async addGuestbookMessage(message) {
         try {
             const apiBase = this.getApiBaseURL();
@@ -1707,6 +1727,108 @@ class BlogDataStore {
             }
         } catch (error) {
             console.error('❌ 删除用户失败:', error);
+            throw error;
+        }
+    }
+
+    // 应用相关方法
+    getApps() {
+        const data = this.getAllData();
+        return data.apps || [];
+    }
+    
+    // 🔥 异步获取应用（优先从 API）
+    async getAppsAsync() {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/apps`);
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 从API获取应用数据:', result.data?.length || 0, '个');
+                return result.data || [];
+            } else {
+                console.warn('⚠️ API获取应用失败，使用缓存数据');
+                return this.getApps();
+            }
+        } catch (error) {
+            console.warn('⚠️ API获取应用失败，使用缓存数据:', error.message);
+            return this.getApps();
+        }
+    }
+
+    async addApp(app) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const appData = {
+                ...app,
+                createdAt: new Date().toISOString(),
+                status: app.status || 'enabled',
+                order: app.order || 0
+            };
+            
+            const response = await fetch(`${apiBase}/apps`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(appData)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 应用已保存到KV数据库:', result.data.id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API保存失败:', response.status, errorText);
+                throw new Error(`应用创建失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 添加应用失败:', error);
+            throw error;
+        }
+    }
+
+    async updateApp(id, updates) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/apps?id=${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 应用已更新到KV数据库:', id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API更新失败:', response.status, errorText);
+                throw new Error(`应用更新失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 更新应用失败:', error);
+            throw error;
+        }
+    }
+
+    async deleteApp(id) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/apps?id=${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                console.log('✅ 应用已从KV数据库删除:', id);
+                return { success: true };
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API删除失败:', response.status, errorText);
+                throw new Error(`应用删除失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 删除应用失败:', error);
             throw error;
         }
     }

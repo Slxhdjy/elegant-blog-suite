@@ -308,6 +308,12 @@ async function renderCategoriesTable() {
     // 显示加载状态
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:2rem; color:#999;">加载中...</td></tr>';
     
+    // 清除旧的事件监听器标记，确保重新渲染后能重新绑定事件
+    const categoriesTable = document.querySelector('#page-categories .table-container');
+    if (categoriesTable) {
+        categoriesTable.dataset.hasListener = 'false';
+    }
+    
     try {
         const categories = await window.blogDataStore.getCategories();
         
@@ -327,11 +333,14 @@ async function renderCategoriesTable() {
                     </span>
                 </td>
                 <td>
-                    <button class="btn-icon" title="编辑" onclick="editCategory(${category.id})">✏️</button>
-                    <button class="btn-icon" title="删除" onclick="deleteCategoryConfirm(${category.id})" ${category.count > 0 ? 'style="opacity: 0.5;" disabled' : ''}>🗑️</button>
+                    <button class="btn-icon category-edit-btn" data-category-id="${category.id}" title="编辑">✏️</button>
+                    <button class="btn-icon category-delete-btn" data-category-id="${category.id}" title="删除" ${category.count > 0 ? 'style="opacity: 0.5;" disabled' : ''}>🗑️</button>
                 </td>
             </tr>
         `).join('');
+        
+        // 设置事件委托处理分类按钮点击
+        setupCategoryButtonHandlers();
     } catch (error) {
         console.error('加载分类失败:', error);
         tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:2rem; color:#f44336;">加载失败，请刷新重试</td></tr>';
@@ -352,6 +361,9 @@ async function renderTagsGrid() {
         // 按文章数量降序排序
         const sortedTags = [...tags].sort((a, b) => b.count - a.count);
 
+        // 清除旧的事件监听器标记，确保重新渲染后能重新绑定事件
+        tagsGrid.dataset.hasListener = 'false';
+        
         tagsGrid.innerHTML = sortedTags.map(tag => `
             <div class="tag-card" data-tag-id="${tag.id}" style="position: relative; ${tag.count === 0 ? 'opacity: 0.6;' : ''}">
                 <div class="tag-name" style="font-size: 1.1rem; font-weight: 600; color: ${tag.count > 0 ? '#2c5f7c' : '#999'};">
@@ -417,42 +429,71 @@ async function renderTagsGrid() {
 // 设置标签按钮事件处理器（使用事件委托）
 function setupTagButtonHandlers() {
     const tagsGrid = document.querySelector('#page-tags .tags-grid');
-    if (!tagsGrid) return;
+    if (!tagsGrid) {
+        console.log('❌ 未找到标签网格元素');
+        return;
+    }
     
-    // 移除旧的事件监听器标记
+    // 检查是否已经添加过监听器
     if (tagsGrid.dataset.hasListener === 'true') {
-        return; // 已经添加过监听器，不重复添加
+        console.log('⚠️ 标签网格已经有事件监听器，跳过重复添加');
+        return;
     }
     
     // 标记已添加监听器
     tagsGrid.dataset.hasListener = 'true';
+    console.log('✅ 为标签网格添加事件监听器');
     
     // 添加事件委托
+    console.log('🎯 为标签网格添加事件委托');
     tagsGrid.addEventListener('click', async (e) => {
+        console.log('🖱️ 标签网格点击事件触发:', e.target);
         const editBtn = e.target.closest('.tag-edit-btn');
         const deleteBtn = e.target.closest('.tag-delete-btn');
         
         if (editBtn) {
             // 检查权限
-            if (!window.checkPermission('tags', 'update')) {
+            console.log('🔍 检查标签编辑权限...');
+            console.log('权限管理器状态:', {
+                exists: !!window.permissionManager,
+                initialized: window.permissionManager?.initialized,
+                currentUser: window.permissionManager?.currentUser
+            });
+            
+            const hasPermission = window.checkPermission('tags', 'update');
+            console.log('标签编辑权限检查结果:', hasPermission);
+            
+            if (!hasPermission) {
+                console.log('❌ 权限不足，阻止编辑操作');
                 e.preventDefault();
                 e.stopPropagation();
                 return;
             }
             
             const tagId = editBtn.dataset.tagId;
-            console.log('编辑标签按钮被点击, ID:', tagId, 'Type:', typeof tagId);
+            console.log('✅ 权限检查通过，编辑标签按钮被点击, ID:', tagId, 'Type:', typeof tagId);
             await editTag(tagId);
         } else if (deleteBtn && !deleteBtn.disabled) {
             // 检查权限
-            if (!window.checkPermission('tags', 'delete')) {
+            console.log('🔍 检查标签删除权限...');
+            console.log('权限管理器状态:', {
+                exists: !!window.permissionManager,
+                initialized: window.permissionManager?.initialized,
+                currentUser: window.permissionManager?.currentUser
+            });
+            
+            const hasPermission = window.checkPermission('tags', 'delete');
+            console.log('标签删除权限检查结果:', hasPermission);
+            
+            if (!hasPermission) {
+                console.log('❌ 权限不足，阻止删除操作');
                 e.preventDefault();
                 e.stopPropagation();
                 return;
             }
             
             const tagId = deleteBtn.dataset.tagId;
-            console.log('删除标签按钮被点击, ID:', tagId, 'Type:', typeof tagId);
+            console.log('✅ 权限检查通过，删除标签按钮被点击, ID:', tagId, 'Type:', typeof tagId);
             await deleteTagConfirm(tagId);
         }
     });
@@ -468,6 +509,12 @@ async function renderCommentsTable() {
     try {
         const comments = await window.blogDataStore.getComments();
 
+        // 清除旧的事件监听器标记，确保重新渲染后能重新绑定事件
+        const commentsTable = document.querySelector('#page-comments .table-container');
+        if (commentsTable) {
+            commentsTable.dataset.hasListener = 'false';
+        }
+        
         tbody.innerHTML = comments.map(comment => {
             const timeAgo = getTimeAgo(new Date(comment.time));
             // 如果没有status字段，默认为pending
@@ -483,16 +530,93 @@ async function renderCommentsTable() {
                     <td>${timeAgo}</td>
                     <td><span class="badge badge-${isApproved ? 'success' : 'warning'}">${isApproved ? '已通过' : '待审核'}</span></td>
                     <td>
-                        ${isPending ? `<button class="btn-icon" title="通过" onclick="approveComment(${comment.id})">✅</button>` : ''}
-                        <button class="btn-icon" title="删除" onclick="deleteCommentConfirm(${comment.id})">🗑️</button>
+                        ${isPending ? `<button class="btn-icon comment-approve-btn" data-comment-id="${comment.id}" title="通过">✅</button>` : ''}
+                        <button class="btn-icon comment-delete-btn" data-comment-id="${comment.id}" title="删除">🗑️</button>
                     </td>
                 </tr>
             `;
         }).join('');
+        
+        // 设置事件委托处理评论按钮点击
+        setupCommentButtonHandlers();
     } catch (error) {
         console.error('加载评论失败:', error);
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem; color:#f44336;">加载失败，请刷新重试</td></tr>';
     }
+}
+
+// 设置评论按钮事件处理器（使用事件委托）
+function setupCommentButtonHandlers() {
+    const commentsTable = document.querySelector('#page-comments .table-container');
+    if (!commentsTable) {
+        console.log('❌ 未找到评论表格容器');
+        return;
+    }
+    
+    // 检查是否已经添加过监听器
+    if (commentsTable.dataset.hasListener === 'true') {
+        console.log('⚠️ 评论表格已经有事件监听器，跳过重复添加');
+        return;
+    }
+    
+    // 标记已添加监听器
+    commentsTable.dataset.hasListener = 'true';
+    console.log('✅ 为评论表格添加事件监听器');
+    
+    // 添加事件委托
+    console.log('🎯 为评论表格添加事件委托');
+    commentsTable.addEventListener('click', async (e) => {
+        console.log('🖱️ 评论表格点击事件触发:', e.target);
+        
+        const approveBtn = e.target.closest('.comment-approve-btn');
+        const deleteBtn = e.target.closest('.comment-delete-btn');
+        
+        if (approveBtn) {
+            // 检查权限
+            console.log('🔍 检查评论审核权限...');
+            console.log('权限管理器状态:', {
+                exists: !!window.permissionManager,
+                initialized: window.permissionManager?.initialized,
+                currentUser: window.permissionManager?.currentUser
+            });
+            
+            const hasPermission = window.checkPermission('comments', 'approve');
+            console.log('评论审核权限检查结果:', hasPermission);
+            
+            if (!hasPermission) {
+                console.log('❌ 权限不足，阻止审核操作');
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            
+            const commentId = approveBtn.dataset.commentId;
+            console.log('✅ 权限检查通过，审核评论按钮被点击, ID:', commentId, 'Type:', typeof commentId);
+            await approveComment(commentId);
+        } else if (deleteBtn) {
+            // 检查权限
+            console.log('🔍 检查评论删除权限...');
+            console.log('权限管理器状态:', {
+                exists: !!window.permissionManager,
+                initialized: window.permissionManager?.initialized,
+                currentUser: window.permissionManager?.currentUser
+            });
+            
+            const hasPermission = window.checkPermission('comments', 'delete');
+            console.log('评论删除权限检查结果:', hasPermission);
+            
+            if (!hasPermission) {
+                console.log('❌ 权限不足，阻止删除操作');
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            
+            const commentId = deleteBtn.dataset.commentId;
+            console.log('✅ 权限检查通过，删除评论按钮被点击, ID:', commentId, 'Type:', typeof commentId);
+            await deleteCommentConfirm(commentId);
+        }
+    });
 }
 
 // 编辑文章
@@ -515,6 +639,80 @@ async function deleteArticleConfirm(id) {
             showNotification('删除失败: ' + error.message, 'error');
         }
     }
+}
+
+// 设置分类按钮事件处理器（使用事件委托）
+function setupCategoryButtonHandlers() {
+    const categoriesTable = document.querySelector('#page-categories .table-container');
+    if (!categoriesTable) {
+        console.log('❌ 未找到分类表格容器');
+        return;
+    }
+    
+    // 检查是否已经添加过监听器
+    if (categoriesTable.dataset.hasListener === 'true') {
+        console.log('⚠️ 分类表格已经有事件监听器，跳过重复添加');
+        return;
+    }
+    
+    // 标记已添加监听器
+    categoriesTable.dataset.hasListener = 'true';
+    console.log('✅ 为分类表格添加事件监听器');
+    
+    // 添加事件委托
+    console.log('🎯 为分类表格添加事件委托');
+    categoriesTable.addEventListener('click', async (e) => {
+        console.log('🖱️ 分类表格点击事件触发:', e.target);
+        
+        const editBtn = e.target.closest('.category-edit-btn');
+        const deleteBtn = e.target.closest('.category-delete-btn');
+        
+        if (editBtn) {
+            // 检查权限
+            console.log('🔍 检查分类编辑权限...');
+            console.log('权限管理器状态:', {
+                exists: !!window.permissionManager,
+                initialized: window.permissionManager?.initialized,
+                currentUser: window.permissionManager?.currentUser
+            });
+            
+            const hasPermission = window.checkPermission('categories', 'update');
+            console.log('分类编辑权限检查结果:', hasPermission);
+            
+            if (!hasPermission) {
+                console.log('❌ 权限不足，阻止编辑操作');
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            
+            const categoryId = editBtn.dataset.categoryId;
+            console.log('✅ 权限检查通过，编辑分类按钮被点击, ID:', categoryId, 'Type:', typeof categoryId);
+            await editCategory(categoryId);
+        } else if (deleteBtn && !deleteBtn.disabled) {
+            // 检查权限
+            console.log('🔍 检查分类删除权限...');
+            console.log('权限管理器状态:', {
+                exists: !!window.permissionManager,
+                initialized: window.permissionManager?.initialized,
+                currentUser: window.permissionManager?.currentUser
+            });
+            
+            const hasPermission = window.checkPermission('categories', 'delete');
+            console.log('分类删除权限检查结果:', hasPermission);
+            
+            if (!hasPermission) {
+                console.log('❌ 权限不足，阻止删除操作');
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            
+            const categoryId = deleteBtn.dataset.categoryId;
+            console.log('✅ 权限检查通过，删除分类按钮被点击, ID:', categoryId, 'Type:', typeof categoryId);
+            await deleteCategoryConfirm(categoryId);
+        }
+    });
 }
 
 // 编辑分类
@@ -565,11 +763,24 @@ async function updateCategory(id) {
     }
 
     try {
-        await window.blogDataStore.updateCategory(id, { name, description });
+        console.log('🔄 开始更新分类, ID:', id, '新名称:', name, '描述:', description);
+        console.log('使用的数据存储:', window.blogDataStore);
+        
+        const result = await window.blogDataStore.updateCategory(id, { name, description });
+        console.log('✅ 分类更新API调用结果:', result);
+        
         showNotification('分类更新成功', 'success');
         closeModal();
         await renderCategoriesTable();
     } catch (error) {
+        console.error('❌ 分类更新失败:', error);
+        console.error('错误详情:', {
+            message: error.message,
+            stack: error.stack,
+            id: id,
+            name: name,
+            description: description
+        });
         showNotification('更新失败: ' + error.message, 'error');
     }
 }
@@ -661,11 +872,23 @@ async function updateTag(id) {
     }
 
     try {
-        await window.blogDataStore.updateTag(id, { name });
+        console.log('🔄 开始更新标签, ID:', id, '新名称:', name);
+        console.log('使用的数据存储:', window.blogDataStore);
+        
+        const result = await window.blogDataStore.updateTag(id, { name });
+        console.log('✅ 标签更新API调用结果:', result);
+        
         showNotification('标签更新成功', 'success');
         closeModal();
         await renderTagsGrid();
     } catch (error) {
+        console.error('❌ 标签更新失败:', error);
+        console.error('错误详情:', {
+            message: error.message,
+            stack: error.stack,
+            id: id,
+            name: name
+        });
         showNotification('更新失败: ' + error.message, 'error');
     }
 }
@@ -714,14 +937,220 @@ async function deleteTagConfirm(id) {
 window.editTag = editTag;
 window.deleteTagConfirm = deleteTagConfirm;
 
+// 调试函数：测试标签编辑功能
+window.testTagEdit = async function(tagId) {
+    console.log('🧪 测试标签编辑功能, ID:', tagId);
+    
+    // 检查权限管理器状态
+    console.log('权限管理器状态:', {
+        exists: !!window.permissionManager,
+        initialized: window.permissionManager?.initialized,
+        currentUser: window.permissionManager?.currentUser
+    });
+    
+    // 检查权限
+    const hasPermission = window.checkPermission('tags', 'update');
+    console.log('标签编辑权限:', hasPermission);
+    
+    if (!hasPermission) {
+        console.log('❌ 权限不足');
+        return;
+    }
+    
+    // 测试editTag函数
+    try {
+        await editTag(tagId);
+        console.log('✅ editTag函数调用成功');
+    } catch (error) {
+        console.error('❌ editTag函数调用失败:', error);
+    }
+};
+
+// 调试函数：测试API调用
+window.testTagAPI = async function(tagId, newName) {
+    console.log('🧪 测试标签API调用, ID:', tagId, '新名称:', newName);
+    
+    try {
+        const result = await window.blogDataStore.updateTag(tagId, { name: newName });
+        console.log('✅ API调用成功:', result);
+    } catch (error) {
+        console.error('❌ API调用失败:', error);
+    }
+};
+
+// 调试函数：检查权限系统状态
+window.debugPermissionSystem = function() {
+    console.log('=== 权限系统调试信息 ===');
+    
+    // 检查权限管理器
+    console.log('权限管理器:', {
+        exists: !!window.permissionManager,
+        initialized: window.permissionManager?.initialized,
+        currentUser: window.permissionManager?.currentUser,
+        permissions: window.permissionManager?.permissions?.tags
+    });
+    
+    // 检查当前用户
+    if (window.permissionManager?.currentUser) {
+        const user = window.permissionManager.currentUser;
+        console.log('当前用户:', {
+            username: user.username,
+            role: user.role,
+            displayName: user.displayName
+        });
+        
+        // 检查标签权限
+        console.log('标签权限检查:', {
+            read: window.permissionManager.hasPermission('tags', 'read'),
+            create: window.permissionManager.hasPermission('tags', 'create'),
+            update: window.permissionManager.hasPermission('tags', 'update'),
+            delete: window.permissionManager.hasPermission('tags', 'delete')
+        });
+    }
+    
+    // 检查标签按钮
+    const tagButtons = document.querySelectorAll('.tag-edit-btn, .tag-delete-btn');
+    console.log(`找到 ${tagButtons.length} 个标签按钮`);
+    
+    tagButtons.forEach((btn, index) => {
+        console.log(`按钮 ${index + 1}:`, {
+            className: btn.className,
+            tagId: btn.dataset.tagId,
+            disabled: btn.disabled,
+            opacity: btn.style.opacity,
+            cursor: btn.style.cursor,
+            permissionDisabled: btn.hasAttribute('data-permission-disabled')
+        });
+    });
+};
+
+// 全局测试函数：手动触发标签编辑
+window.manualEditTag = function(tagId) {
+    console.log('🔧 手动触发标签编辑, ID:', tagId);
+    
+    // 直接调用editTag函数，绕过权限检查
+    editTag(tagId).then(() => {
+        console.log('✅ 手动编辑标签完成');
+    }).catch(error => {
+        console.error('❌ 手动编辑标签失败:', error);
+    });
+};
+
+// 全局测试函数：手动触发分类编辑
+window.manualEditCategory = function(categoryId) {
+    console.log('🔧 手动触发分类编辑, ID:', categoryId);
+    
+    // 直接调用editCategory函数，绕过权限检查
+    editCategory(categoryId).then(() => {
+        console.log('✅ 手动编辑分类完成');
+    }).catch(error => {
+        console.error('❌ 手动编辑分类失败:', error);
+    });
+};
+
+// 全局测试函数：手动触发评论审核
+window.manualApproveComment = function(commentId) {
+    console.log('🔧 手动触发评论审核, ID:', commentId);
+    
+    // 直接调用approveComment函数，绕过权限检查
+    approveComment(commentId).then(() => {
+        console.log('✅ 手动审核评论完成');
+    }).catch(error => {
+        console.error('❌ 手动审核评论失败:', error);
+    });
+};
+
+// 全局测试函数：检查评论按钮事件绑定
+window.checkCommentButtonEvents = function() {
+    const commentsTable = document.querySelector('#page-comments .table-container');
+    if (!commentsTable) {
+        console.log('❌ 未找到评论表格');
+        return;
+    }
+    
+    console.log('评论表格状态:', {
+        hasListener: commentsTable.dataset.hasListener,
+        innerHTML: commentsTable.innerHTML.length > 0 ? '有内容' : '无内容'
+    });
+    
+    const commentButtons = document.querySelectorAll('.comment-approve-btn, .comment-delete-btn');
+    console.log(`找到 ${commentButtons.length} 个评论按钮`);
+    
+    // 测试点击第一个审核按钮
+    const firstApproveBtn = document.querySelector('.comment-approve-btn');
+    if (firstApproveBtn) {
+        console.log('测试点击第一个评论审核按钮...');
+        firstApproveBtn.click();
+    }
+};
+
+// 全局测试函数：检查分类按钮事件绑定
+window.checkCategoryButtonEvents = function() {
+    const categoriesTable = document.querySelector('#page-categories .table-container');
+    if (!categoriesTable) {
+        console.log('❌ 未找到分类表格');
+        return;
+    }
+    
+    console.log('分类表格状态:', {
+        hasListener: categoriesTable.dataset.hasListener,
+        innerHTML: categoriesTable.innerHTML.length > 0 ? '有内容' : '无内容'
+    });
+    
+    const categoryButtons = document.querySelectorAll('.category-edit-btn, .category-delete-btn');
+    console.log(`找到 ${categoryButtons.length} 个分类按钮`);
+    
+    // 测试点击第一个编辑按钮
+    const firstEditBtn = document.querySelector('.category-edit-btn');
+    if (firstEditBtn) {
+        console.log('测试点击第一个分类编辑按钮...');
+        firstEditBtn.click();
+    }
+};
+
+// 全局测试函数：检查按钮事件绑定
+window.checkTagButtonEvents = function() {
+    const tagsGrid = document.querySelector('#page-tags .tags-grid');
+    if (!tagsGrid) {
+        console.log('❌ 未找到标签网格');
+        return;
+    }
+    
+    console.log('标签网格状态:', {
+        hasListener: tagsGrid.dataset.hasListener,
+        innerHTML: tagsGrid.innerHTML.length > 0 ? '有内容' : '无内容'
+    });
+    
+    const tagButtons = document.querySelectorAll('.tag-edit-btn, .tag-delete-btn');
+    console.log(`找到 ${tagButtons.length} 个标签按钮`);
+    
+    // 测试点击第一个编辑按钮
+    const firstEditBtn = document.querySelector('.tag-edit-btn');
+    if (firstEditBtn) {
+        console.log('测试点击第一个编辑按钮...');
+        firstEditBtn.click();
+    }
+};
+
 // 通过评论
 async function approveComment(id) {
     try {
-        await window.blogDataStore.updateComment(id, { status: 'approved' });
+        console.log('🔄 开始审核评论, ID:', id);
+        console.log('使用的数据存储:', window.blogDataStore);
+        
+        const result = await window.blogDataStore.updateComment(id, { status: 'approved' });
+        console.log('✅ 评论审核API调用结果:', result);
+        
         showNotification('评论已通过', 'success');
         await renderCommentsTable();
         await renderDashboard();
     } catch (error) {
+        console.error('❌ 评论审核失败:', error);
+        console.error('错误详情:', {
+            message: error.message,
+            stack: error.stack,
+            id: id
+        });
         showNotification('操作失败: ' + error.message, 'error');
     }
 }
@@ -730,11 +1159,22 @@ async function approveComment(id) {
 async function deleteCommentConfirm(id) {
     if (confirm('确定要删除这条评论吗？')) {
         try {
-            await window.blogDataStore.deleteComment(id);
+            console.log('🔄 开始删除评论, ID:', id);
+            console.log('使用的数据存储:', window.blogDataStore);
+            
+            const result = await window.blogDataStore.deleteComment(id);
+            console.log('✅ 评论删除API调用结果:', result);
+            
             showNotification('评论删除成功', 'success');
             await renderCommentsTable();
             await renderDashboard();
         } catch (error) {
+            console.error('❌ 评论删除失败:', error);
+            console.error('错误详情:', {
+                message: error.message,
+                stack: error.stack,
+                id: id
+            });
             showNotification('删除失败: ' + error.message, 'error');
         }
     }
@@ -2327,10 +2767,16 @@ function closeExportMenu() {
 
 // 渲染留言列表
 async function renderGuestbookMessages() {
-    const messages = await window.blogDataStore.getGuestbookMessages();
+    const messages = await window.blogDataStore.getGuestbookMessagesAsync();
     const messagesList = document.getElementById('adminMessagesList');
     
     if (!messagesList) return;
+    
+    // 清除旧的事件监听器标记，确保重新渲染后能重新绑定事件
+    const guestbookContainer = document.querySelector('#page-guestbook .guestbook-container');
+    if (guestbookContainer) {
+        guestbookContainer.dataset.hasListener = 'false';
+    }
     
     // 更新统计
     document.getElementById('totalMessages').textContent = messages.length;
@@ -2355,6 +2801,9 @@ async function renderGuestbookMessages() {
         ...pinnedMessages.map(msg => renderAdminMessage(msg)),
         ...normalMessages.map(msg => renderAdminMessage(msg))
     ].join('');
+    
+    // 设置事件委托处理留言按钮点击
+    setupGuestbookButtonHandlers();
 }
 
 // 渲染单条留言（后台）
@@ -2381,10 +2830,10 @@ function renderAdminMessage(message) {
                             </div>
                         </div>
                         <div class="message-actions">
-                            <button class="btn-icon" title="${message.pinned ? '取消置顶' : '置顶'}" onclick="toggleMessagePin(${message.id})">
+                            <button class="btn-icon guestbook-pin-btn" data-message-id="${message.id}" title="${message.pinned ? '取消置顶' : '置顶'}">
                                 ${message.pinned ? '📌' : '📍'}
                             </button>
-                            <button class="btn-icon" title="删除" onclick="deleteMessageConfirm(${message.id})">
+                            <button class="btn-icon guestbook-delete-btn" data-message-id="${message.id}" title="删除">
                                 🗑️
                             </button>
                         </div>
@@ -2404,17 +2853,120 @@ function renderAdminMessage(message) {
     `;
 }
 
+// 设置留言按钮事件处理器（使用事件委托）
+function setupGuestbookButtonHandlers() {
+    const guestbookContainer = document.querySelector('#page-guestbook .guestbook-container');
+    if (!guestbookContainer) {
+        console.log('❌ 未找到留言容器');
+        return;
+    }
+    
+    // 检查是否已经添加过监听器
+    if (guestbookContainer.dataset.hasListener === 'true') {
+        console.log('⚠️ 留言容器已经有事件监听器，跳过重复添加');
+        return;
+    }
+    
+    // 标记已添加监听器
+    guestbookContainer.dataset.hasListener = 'true';
+    console.log('✅ 为留言容器添加事件监听器');
+    
+    // 添加事件委托
+    console.log('🎯 为留言容器添加事件委托');
+    guestbookContainer.addEventListener('click', async (e) => {
+        console.log('🖱️ 留言容器点击事件触发:', e.target);
+        
+        const pinBtn = e.target.closest('.guestbook-pin-btn');
+        const deleteBtn = e.target.closest('.guestbook-delete-btn');
+        
+        if (pinBtn) {
+            // 检查权限
+            console.log('🔍 检查留言置顶权限...');
+            console.log('权限管理器状态:', {
+                exists: !!window.permissionManager,
+                initialized: window.permissionManager?.initialized,
+                currentUser: window.permissionManager?.currentUser
+            });
+            
+            const hasPermission = window.checkPermission('guestbook', 'update');
+            console.log('留言置顶权限检查结果:', hasPermission);
+            
+            if (!hasPermission) {
+                console.log('❌ 权限不足，阻止置顶操作');
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            
+            const messageId = pinBtn.dataset.messageId;
+            console.log('✅ 权限检查通过，置顶留言按钮被点击, ID:', messageId, 'Type:', typeof messageId);
+            await toggleMessagePin(messageId);
+        } else if (deleteBtn) {
+            // 检查权限
+            console.log('🔍 检查留言删除权限...');
+            console.log('权限管理器状态:', {
+                exists: !!window.permissionManager,
+                initialized: window.permissionManager?.initialized,
+                currentUser: window.permissionManager?.currentUser
+            });
+            
+            const hasPermission = window.checkPermission('guestbook', 'delete');
+            console.log('留言删除权限检查结果:', hasPermission);
+            
+            if (!hasPermission) {
+                console.log('❌ 权限不足，阻止删除操作');
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            
+            const messageId = deleteBtn.dataset.messageId;
+            console.log('✅ 权限检查通过，删除留言按钮被点击, ID:', messageId, 'Type:', typeof messageId);
+            await deleteMessageConfirm(messageId);
+        }
+    });
+}
+
 // 切换留言置顶
-function toggleMessagePin(id) {
+async function toggleMessagePin(id) {
     // 检查权限
     if (!window.checkPermission('guestbook', 'update')) {
         return;
     }
     
-    const message = window.blogDataStore.toggleGuestbookPin(id);
-    if (message) {
-        showNotification(message.pinned ? '已置顶' : '已取消置顶', 'success');
-        renderGuestbookMessages();
+    try {
+        console.log('🔄 开始切换留言置顶状态, ID:', id);
+        
+        // 先获取当前留言信息
+        const messages = await window.blogDataStore.getGuestbookMessagesAsync();
+        const message = messages.find(m => m.id == id);
+        
+        if (!message) {
+            console.error('❌ 未找到留言, ID:', id);
+            showNotification('未找到该留言', 'error');
+            return;
+        }
+        
+        console.log('当前留言状态:', { id: message.id, pinned: message.pinned });
+        
+        // 切换置顶状态
+        const newPinnedStatus = !message.pinned;
+        console.log('新的置顶状态:', newPinnedStatus);
+        
+        // 调用API更新留言
+        const result = await window.blogDataStore.updateGuestbookMessage(id, { pinned: newPinnedStatus });
+        console.log('✅ 留言置顶API调用结果:', result);
+        
+        showNotification(newPinnedStatus ? '已置顶' : '已取消置顶', 'success');
+        await renderGuestbookMessages();
+    } catch (error) {
+        console.error('❌ 切换留言置顶状态失败:', error);
+        console.error('错误详情:', {
+            message: error.message,
+            stack: error.stack,
+            id: id
+        });
+        showNotification('操作失败: ' + error.message, 'error');
     }
 }
 
@@ -2427,14 +2979,65 @@ async function deleteMessageConfirm(id) {
     
     if (confirm('确定要删除这条留言吗？此操作不可恢复。')) {
         try {
-            await window.blogDataStore.deleteGuestbookMessage(id);
+            console.log('🔄 开始删除留言, ID:', id);
+            console.log('使用的数据存储:', window.blogDataStore);
+            
+            const result = await window.blogDataStore.deleteGuestbookMessage(id);
+            console.log('✅ 留言删除API调用结果:', result);
+            
             showNotification('留言删除成功', 'success');
             await renderGuestbookMessages();
         } catch (error) {
+            console.error('❌ 留言删除失败:', error);
+            console.error('错误详情:', {
+                message: error.message,
+                stack: error.stack,
+                id: id
+            });
             showNotification('删除失败: ' + error.message, 'error');
         }
     }
 }
+
+// 调试函数：手动测试留言置顶
+window.manualPinMessage = async function(id) {
+    console.log('🧪 手动测试留言置顶, ID:', id);
+    try {
+        await toggleMessagePin(id);
+    } catch (error) {
+        console.error('❌ 手动置顶测试失败:', error);
+    }
+};
+
+// 调试函数：检查留言按钮事件
+window.checkGuestbookButtonEvents = function() {
+    const pinButtons = document.querySelectorAll('.guestbook-pin-btn');
+    const deleteButtons = document.querySelectorAll('.guestbook-delete-btn');
+    
+    console.log('🔍 留言按钮检查结果:');
+    console.log('置顶按钮数量:', pinButtons.length);
+    console.log('删除按钮数量:', deleteButtons.length);
+    
+    pinButtons.forEach((btn, index) => {
+        console.log(`置顶按钮 ${index + 1}:`, {
+            messageId: btn.dataset.messageId,
+            hasEventListener: btn.onclick !== null
+        });
+    });
+    
+    deleteButtons.forEach((btn, index) => {
+        console.log(`删除按钮 ${index + 1}:`, {
+            messageId: btn.dataset.messageId,
+            hasEventListener: btn.onclick !== null
+        });
+    });
+    
+    const container = document.querySelector('#page-guestbook .guestbook-container');
+    console.log('容器事件委托状态:', {
+        hasListener: container?.dataset.hasListener,
+        containerExists: !!container
+    });
+};
 
 // HTML转义
 function escapeHtml(text) {
@@ -2457,21 +3060,56 @@ async function renderAppsManager() {
             return;
         }
         
+        // 等待应用管理器脚本加载
+        let retryCount = 0;
+        const maxRetries = 10;
+        
+        while (typeof AppsAdminManager === 'undefined' && retryCount < maxRetries) {
+            console.log(`⏳ 等待应用管理器脚本加载... (${retryCount + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            retryCount++;
+        }
+        
+        if (typeof AppsAdminManager === 'undefined') {
+            console.error('❌ 应用管理器类未加载');
+            container.innerHTML = `
+                <div class="error-state">
+                    <div class="error-icon">⚠️</div>
+                    <p>应用管理器加载失败</p>
+                    <button class="btn-primary" onclick="renderAppsManager()">🔄 重试</button>
+                </div>
+            `;
+            return;
+        }
+        
         // 确保应用管理器已加载
         if (typeof initAppsManager === 'function') {
             initAppsManager();
             console.log('✅ 应用管理器初始化完成');
-        } else if (typeof AppsAdminManager !== 'undefined') {
+        } else {
             // 直接创建实例
             if (!window.appsAdminManager) {
                 window.appsAdminManager = new AppsAdminManager();
                 console.log('✅ 应用管理器实例创建完成');
+            } else {
+                // 如果已存在，重新绑定事件
+                console.log('🔄 重新绑定应用管理器事件');
+                window.appsAdminManager.bindEvents();
             }
-        } else {
-            console.warn('⚠️ 应用管理器类未找到');
         }
     } catch (error) {
         console.error('❌ 应用管理器初始化失败:', error);
+        const container = document.getElementById('appsManageGrid');
+        if (container) {
+            container.innerHTML = `
+                <div class="error-state">
+                    <div class="error-icon">❌</div>
+                    <p>应用管理器初始化失败</p>
+                    <p style="font-size: 0.9rem; color: #666;">${error.message}</p>
+                    <button class="btn-primary" onclick="renderAppsManager()">🔄 重试</button>
+                </div>
+            `;
+        }
     }
 }
 
