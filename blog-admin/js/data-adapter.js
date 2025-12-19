@@ -79,6 +79,100 @@ class DataAdapter {
 
     // ========== 核心方法 ==========
 
+    // 通用资源创建方法
+    async createResourceItem(resource, itemData) {
+        // 在Vercel环境下，只使用环境适配器，不回退
+        if (this.useEnvironmentAdapter && window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
+            console.log(`🌐 Vercel环境：使用环境适配器创建${resource}`);
+            const result = await this.createItem(resource, itemData);
+            
+            if (result.success) {
+                return result.data;
+            } else {
+                throw new Error(result.message || `创建${resource}失败`);
+            }
+        }
+        
+        // 非Vercel环境的处理
+        try {
+            const result = await this.createItem(resource, itemData);
+            return result.success ? result.data : null;
+        } catch (error) {
+            console.warn(`API添加${resource}失败，使用本地存储`);
+            // 回退到localStorage
+            const items = await this.getData(resource);
+            const newId = Math.max(...items.map(i => parseInt(i.id) || 0), 0) + 1;
+            const newItem = {
+                id: String(newId),
+                ...itemData,
+                createdAt: new Date().toISOString()
+            };
+            items.push(newItem);
+            await this.saveData(resource, items);
+            return newItem;
+        }
+    }
+
+    // 通用资源更新方法
+    async updateResourceItem(resource, id, updates) {
+        // 在Vercel环境下，只使用环境适配器，不回退
+        if (this.useEnvironmentAdapter && window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
+            console.log(`🌐 Vercel环境：使用环境适配器更新${resource}`);
+            const result = await this.updateItem(resource, id, updates);
+            
+            if (result.success) {
+                return result.data;
+            } else {
+                throw new Error(result.message || `更新${resource}失败`);
+            }
+        }
+        
+        // 非Vercel环境的处理
+        try {
+            const result = await this.updateItem(resource, id, updates);
+            return result.success ? result.data : null;
+        } catch (error) {
+            console.warn(`API更新${resource}失败，使用本地存储`);
+            // 回退到localStorage
+            const items = await this.getData(resource);
+            const index = items.findIndex(item => String(item.id) === String(id));
+            if (index !== -1) {
+                items[index] = { ...items[index], ...updates, updatedAt: new Date().toISOString() };
+                await this.saveData(resource, items);
+                return items[index];
+            }
+            return null;
+        }
+    }
+
+    // 通用资源删除方法
+    async deleteResourceItem(resource, id) {
+        // 在Vercel环境下，只使用环境适配器，不回退
+        if (this.useEnvironmentAdapter && window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
+            console.log(`🌐 Vercel环境：使用环境适配器删除${resource}`);
+            const result = await this.deleteItem(resource, id);
+            
+            if (result.success) {
+                return result;
+            } else {
+                throw new Error(result.message || `删除${resource}失败`);
+            }
+        }
+        
+        // 非Vercel环境的处理
+        try {
+            const result = await this.deleteItem(resource, id);
+            return result;
+        } catch (error) {
+            console.warn(`API删除${resource}失败，使用本地存储`);
+            // 回退到localStorage
+            const items = await this.getData(resource);
+            const filtered = items.filter(item => String(item.id) !== String(id));
+            await this.saveData(resource, filtered);
+            return { success: true };
+        }
+    }
+
     // 从JSON文件获取数据
     async getDataFromJSON(resource) {
         try {
@@ -307,8 +401,24 @@ class DataAdapter {
     }
 
     async addArticle(article) {
+        // 在Vercel环境下，只使用环境适配器，不回退
+        if (this.useEnvironmentAdapter && window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
+            console.log('🌐 Vercel环境：使用环境适配器创建文章');
+            const result = await this.createItem('articles', {
+                ...article,
+                views: 0,
+                publishDate: article.publishDate || new Date().toISOString().split('T')[0]
+            });
+            
+            if (result.success) {
+                return result.data;
+            } else {
+                throw new Error(result.message || '创建文章失败');
+            }
+        }
+        
+        // 非Vercel环境的处理
         try {
-            // 使用新的CRUD方法
             const result = await this.createItem('articles', {
                 ...article,
                 views: 0,
@@ -329,8 +439,20 @@ class DataAdapter {
     }
 
     async updateArticle(id, updates) {
+        // 在Vercel环境下，只使用环境适配器，不回退
+        if (this.useEnvironmentAdapter && window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
+            console.log('🌐 Vercel环境：使用环境适配器更新文章');
+            const result = await this.updateItem('articles', id, updates);
+            
+            if (result.success) {
+                return result.data;
+            } else {
+                throw new Error(result.message || '更新文章失败');
+            }
+        }
+        
+        // 非Vercel环境的处理
         try {
-            // 使用新的CRUD方法
             const result = await this.updateItem('articles', id, updates);
             return result.success ? result.data : null;
         } catch (error) {
@@ -348,8 +470,20 @@ class DataAdapter {
     }
 
     async deleteArticle(id) {
+        // 在Vercel环境下，只使用环境适配器，不回退
+        if (this.useEnvironmentAdapter && window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
+            console.log('🌐 Vercel环境：使用环境适配器删除文章');
+            const result = await this.deleteItem('articles', id);
+            
+            if (result.success) {
+                return result;
+            } else {
+                throw new Error(result.message || '删除文章失败');
+            }
+        }
+        
+        // 非Vercel环境的处理
         try {
-            // 使用新的CRUD方法
             const result = await this.deleteItem('articles', id);
             return result;
         } catch (error) {
@@ -369,54 +503,18 @@ class DataAdapter {
     }
 
     async addCategory(category) {
-        try {
-            // 使用新的CRUD方法
-            const result = await this.createItem('categories', {
-                ...category,
-                count: 0
-            });
-            return result.success ? result.data : null;
-        } catch (error) {
-            console.warn('API添加分类失败，使用本地存储');
-            const categories = await this.getCategories();
-            category.id = Math.max(...categories.map(c => parseInt(c.id) || 0), 0) + 1;
-            category.count = 0;
-            categories.push(category);
-            await this.saveData('categories', categories);
-            return category;
-        }
+        return await this.createResourceItem('categories', {
+            ...category,
+            count: 0
+        });
     }
 
     async updateCategory(id, updates) {
-        try {
-            // 使用新的CRUD方法
-            const result = await this.updateItem('categories', id, updates);
-            return result.success ? result.data : null;
-        } catch (error) {
-            console.warn('API更新分类失败，使用本地存储');
-            const categories = await this.getCategories();
-            const index = categories.findIndex(cat => String(cat.id) === String(id));
-            if (index !== -1) {
-                categories[index] = { ...categories[index], ...updates };
-                await this.saveData('categories', categories);
-                return categories[index];
-            }
-            return null;
-        }
+        return await this.updateResourceItem('categories', id, updates);
     }
 
     async deleteCategory(id) {
-        try {
-            // 使用新的CRUD方法
-            const result = await this.deleteItem('categories', id);
-            return result;
-        } catch (error) {
-            console.warn('API删除分类失败，使用本地存储');
-            const categories = await this.getCategories();
-            const filtered = categories.filter(cat => String(cat.id) !== String(id));
-            await this.saveData('categories', filtered);
-            return { success: true };
-        }
+        return await this.deleteResourceItem('categories', id);
     }
 
     // ========== 标签相关方法 ==========
@@ -426,54 +524,18 @@ class DataAdapter {
     }
 
     async addTag(tag) {
-        try {
-            // 使用新的CRUD方法
-            const result = await this.createItem('tags', {
-                ...tag,
-                count: 0
-            });
-            return result.success ? result.data : null;
-        } catch (error) {
-            console.warn('API添加标签失败，使用本地存储');
-            const tags = await this.getTags();
-            tag.id = Math.max(...tags.map(t => parseInt(t.id) || 0), 0) + 1;
-            tag.count = 0;
-            tags.push(tag);
-            await this.saveData('tags', tags);
-            return tag;
-        }
+        return await this.createResourceItem('tags', {
+            ...tag,
+            count: 0
+        });
     }
 
     async updateTag(id, updates) {
-        try {
-            // 使用新的CRUD方法
-            const result = await this.updateItem('tags', id, updates);
-            return result.success ? result.data : null;
-        } catch (error) {
-            console.warn('API更新标签失败，使用本地存储');
-            const tags = await this.getTags();
-            const index = tags.findIndex(tag => String(tag.id) === String(id));
-            if (index !== -1) {
-                tags[index] = { ...tags[index], ...updates };
-                await this.saveData('tags', tags);
-                return tags[index];
-            }
-            return null;
-        }
+        return await this.updateResourceItem('tags', id, updates);
     }
 
     async deleteTag(id) {
-        try {
-            // 使用新的CRUD方法
-            const result = await this.deleteItem('tags', id);
-            return result;
-        } catch (error) {
-            console.warn('API删除标签失败，使用本地存储');
-            const tags = await this.getTags();
-            const filtered = tags.filter(tag => String(tag.id) !== String(id));
-            await this.saveData('tags', filtered);
-            return { success: true };
-        }
+        return await this.deleteResourceItem('tags', id);
     }
 
     // ========== 评论相关方法 ==========
@@ -583,20 +645,154 @@ class DataAdapter {
         return await this.getData('images');
     }
 
+    async addImage(image) {
+        return await this.createResourceItem('images', {
+            ...image,
+            uploadDate: new Date().toISOString().split('T')[0],
+            usedIn: image.usedIn || []
+        });
+    }
+
+    async updateImage(id, updates) {
+        return await this.updateResourceItem('images', id, updates);
+    }
+
+    async deleteImage(id) {
+        return await this.deleteResourceItem('images', id);
+    }
+
     async getMusic() {
         return await this.getData('music');
+    }
+
+    async addMusic(music) {
+        return await this.createResourceItem('music', {
+            ...music,
+            uploadDate: new Date().toISOString().split('T')[0]
+        });
+    }
+
+    async updateMusic(id, updates) {
+        return await this.updateResourceItem('music', id, updates);
+    }
+
+    async deleteMusic(id) {
+        return await this.deleteResourceItem('music', id);
     }
 
     async getVideos() {
         return await this.getData('videos');
     }
 
+    async addVideo(video) {
+        return await this.createResourceItem('videos', {
+            ...video,
+            uploadDate: new Date().toISOString().split('T')[0]
+        });
+    }
+
+    async updateVideo(id, updates) {
+        return await this.updateResourceItem('videos', id, updates);
+    }
+
+    async deleteVideo(id) {
+        return await this.deleteResourceItem('videos', id);
+    }
+
     async getLinks() {
         return await this.getData('links');
     }
 
+    async addLink(link) {
+        return await this.createResourceItem('links', {
+            ...link,
+            addedDate: new Date().toISOString().split('T')[0],
+            status: link.status || 'active'
+        });
+    }
+
+    async updateLink(id, updates) {
+        return await this.updateResourceItem('links', id, updates);
+    }
+
+    async deleteLink(id) {
+        return await this.deleteResourceItem('links', id);
+    }
+
     async getEvents() {
         return await this.getData('events');
+    }
+
+    async addEvent(event) {
+        return await this.createResourceItem('events', {
+            ...event,
+            createdAt: new Date().toISOString()
+        });
+    }
+
+    async updateEvent(id, updates) {
+        return await this.updateResourceItem('events', id, updates);
+    }
+
+    async deleteEvent(id) {
+        return await this.deleteResourceItem('events', id);
+    }
+
+    // ========== 应用管理方法 ==========
+    
+    async getApps() {
+        return await this.getData('apps');
+    }
+
+    async addApp(app) {
+        return await this.createResourceItem('apps', {
+            ...app,
+            status: app.status || 'enabled',
+            order: app.order || 0,
+            createdAt: new Date().toISOString()
+        });
+    }
+
+    async updateApp(id, updates) {
+        return await this.updateResourceItem('apps', id, updates);
+    }
+
+    async deleteApp(id) {
+        return await this.deleteResourceItem('apps', id);
+    }
+
+    // ========== 简历管理方法 ==========
+    
+    async getResumes() {
+        return await this.getData('resumes');
+    }
+
+    async addResume(resume) {
+        return await this.createResourceItem('resumes', {
+            ...resume,
+            createdAt: new Date().toISOString()
+        });
+    }
+
+    async updateResume(id, updates) {
+        return await this.updateResourceItem('resumes', id, updates);
+    }
+
+    async deleteResume(id) {
+        return await this.deleteResourceItem('resumes', id);
+    }
+
+    // 兼容旧的媒体方法
+    async getMedia() {
+        return await this.getImages();
+    }
+
+    async addMedia(media) {
+        return await this.addImage(media);
+    }
+
+    async deleteMedia(id) {
+        return await this.deleteImage(id);
     }
 
     // ========== 用户相关方法 ==========
@@ -616,16 +812,64 @@ class DataAdapter {
     }
 
     async addUser(userData) {
-        const users = await this.getUsers();
-        const newUser = {
-            id: `user_${Date.now()}`,
-            ...userData,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
-        users.push(newUser);
-        await this.saveData('users', users);
-        return newUser;
+        console.log('🔍 DataAdapter.addUser 开始:', userData);
+        
+        // 在Vercel环境下，只使用环境适配器，不回退
+        if (this.useEnvironmentAdapter && window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
+            console.log('🌐 Vercel环境：使用环境适配器创建用户');
+            const result = await this.createItem('users', {
+                ...userData,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            });
+            
+            console.log('📡 DataAdapter.createItem 返回结果:', result);
+            
+            if (result.success) {
+                return result.data;
+            } else {
+                throw new Error(result.message || '创建用户失败');
+            }
+        }
+        
+        // 非Vercel环境的处理
+        try {
+            // 使用新的CRUD方法
+            const result = await this.createItem('users', {
+                ...userData,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            });
+            
+            console.log('📡 DataAdapter.createItem 返回结果:', result);
+            
+            if (result.success) {
+                return result.data;
+            } else {
+                throw new Error(result.message || '创建用户失败');
+            }
+        } catch (error) {
+            console.error('❌ DataAdapter.addUser 失败:', error);
+            
+            // 只在非Vercel环境下回退到本地方法
+            console.log('🔄 回退到本地用户创建方法');
+            try {
+                const users = await this.getUsers();
+                const newUser = {
+                    id: `user_${Date.now()}`,
+                    ...userData,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+                users.push(newUser);
+                await this.saveData('users', users);
+                console.log('✅ 本地用户创建成功:', newUser);
+                return newUser;
+            } catch (localError) {
+                console.error('❌ 本地用户创建也失败:', localError);
+                throw new Error('用户创建失败: ' + (error.message || localError.message));
+            }
+        }
     }
 
     async updateUser(id, updates) {

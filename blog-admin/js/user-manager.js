@@ -126,6 +126,14 @@ class UserManager {
             
             // 使用blogDataStore添加用户
             if (window.blogDataStore) {
+                console.log('🔍 开始创建用户:', {
+                    username: userData.username,
+                    role: userData.role || 'editor',
+                    email: userData.email || '',
+                    displayName: userData.displayName || userData.username,
+                    status: userData.status || 'active'
+                });
+                
                 const newUser = await window.blogDataStore.addUser({
                     username: userData.username,
                     password: userData.password,
@@ -135,11 +143,20 @@ class UserManager {
                     status: userData.status || 'active'
                 });
                 
-                return {
-                    success: true,
-                    message: '用户添加成功',
-                    user: newUser
-                };
+                console.log('📡 blogDataStore.addUser 返回结果:', newUser);
+                
+                if (newUser) {
+                    return {
+                        success: true,
+                        message: '用户添加成功',
+                        user: newUser
+                    };
+                } else {
+                    return {
+                        success: false,
+                        message: '用户创建失败，请检查网络连接或联系管理员'
+                    };
+                }
             } else {
                 // 回退到localStorage
                 const newUser = {
@@ -165,9 +182,20 @@ class UserManager {
             }
         } catch (error) {
             console.error('添加用户失败:', error);
+            
+            // 提供更友好的错误信息
+            let userMessage = error.message;
+            if (error.message.includes('404')) {
+                userMessage = 'API端点未找到，请检查Vercel部署配置';
+            } else if (error.message.includes('KV数据库未配置')) {
+                userMessage = 'Vercel KV数据库未配置，请检查环境变量';
+            } else if (error.message.includes('Failed to fetch')) {
+                userMessage = '网络连接失败，请检查网络连接';
+            }
+            
             return {
                 success: false,
-                message: '添加用户失败: ' + error.message
+                message: '添加用户失败: ' + userMessage
             };
         }
     }

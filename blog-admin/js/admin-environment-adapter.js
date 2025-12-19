@@ -226,7 +226,17 @@ class AdminEnvironmentAdapter {
     async createItem(resource, item) {
         try {
             const url = `${this.apiBase}/${resource}`;
-            console.log(`🔍 创建${resource}请求:`, { url, item });
+            console.log(`🔍 创建${resource}请求:`, { 
+                url, 
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                bodyData: item,
+                environment: this.environment,
+                apiBase: this.apiBase
+            });
             
             const response = await fetch(url, {
                 method: 'POST',
@@ -238,15 +248,24 @@ class AdminEnvironmentAdapter {
             });
             
             console.log(`📡 创建响应状态:`, response.status, response.statusText);
+            console.log(`📡 响应头:`, Object.fromEntries(response.headers.entries()));
             
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`❌ 创建错误响应:`, {
                     status: response.status,
                     statusText: response.statusText,
+                    url: response.url,
                     headers: Object.fromEntries(response.headers.entries()),
                     body: errorText
                 });
+                
+                // 特殊处理404错误
+                if (response.status === 404) {
+                    console.error(`❌ API端点未找到: ${url}`);
+                    console.error(`❌ 请检查vercel.json配置和API文件是否存在`);
+                    throw new Error(`API端点未找到: ${url}。请检查Vercel配置。`);
+                }
                 
                 // 尝试解析错误响应
                 let errorData;
@@ -271,6 +290,10 @@ class AdminEnvironmentAdapter {
                 userMessage = 'Vercel KV数据库未配置，请检查环境变量';
             } else if (error.message.includes('缺少请求体')) {
                 userMessage = '数据格式错误，请重试';
+            } else if (error.message.includes('API端点未找到')) {
+                userMessage = 'API配置错误，请联系管理员';
+            } else if (error.message.includes('Failed to fetch')) {
+                userMessage = '网络连接失败，请检查网络或稍后重试';
             }
             
             return { success: false, message: userMessage };
@@ -402,6 +425,8 @@ class AdminEnvironmentAdapter {
             }
         };
     }
+
+
 }
 
 // 创建全局实例

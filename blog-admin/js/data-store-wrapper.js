@@ -12,6 +12,12 @@ class BlogDataStoreWrapper {
         this.jsonBaseURL = this.adapter.jsonBaseURL || '../data';
         this.dataLoaded = false;
         console.log('✅ BlogDataStore包装器已初始化');
+        console.log('🔍 使用的适配器:', {
+            adapterType: this.adapter.constructor.name,
+            useJSON: this.adapter.useJSON,
+            useEnvironmentAdapter: this.adapter.useEnvironmentAdapter,
+            apiBaseURL: this.adapter.apiBaseURL
+        });
     }
 
     // ========== 文章相关方法 ==========
@@ -600,7 +606,16 @@ class BlogDataStoreWrapper {
     }
 
     async addUser(userData) {
-        return await this.adapter.addUser(userData);
+        console.log('🔍 BlogDataStoreWrapper.addUser 调用:', userData);
+        console.log('🔍 使用适配器:', this.adapter.constructor.name);
+        try {
+            const result = await this.adapter.addUser(userData);
+            console.log('📡 适配器返回结果:', result);
+            return result;
+        } catch (error) {
+            console.error('❌ BlogDataStoreWrapper.addUser 失败:', error);
+            throw error;
+        }
     }
 
     async updateUser(id, updates) {

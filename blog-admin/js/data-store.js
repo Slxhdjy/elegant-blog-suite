@@ -189,6 +189,19 @@ class BlogDataStore {
                         uploadDate: '2025-11-14'
                     }
                 ],
+                users: [
+                    {
+                        id: "user_1763831613696",
+                        username: "admin",
+                        password: "admin123",
+                        role: "super_admin",
+                        email: "admin@example.com",
+                        displayName: "超级管理员",
+                        status: "active",
+                        createdAt: "2025-11-22T17:13:33.696Z",
+                        updatedAt: "2025-12-18T10:00:00.000Z"
+                    }
+                ],
                 settings: {
                     siteName: 'ℳঞ执念ꦿ的博客',
                     siteDescription: '一个记录生活和技术的博客',
@@ -472,56 +485,80 @@ class BlogDataStore {
         return data.articles.find(article => article.id === parseInt(id));
     }
 
-    addArticle(article) {
-        const data = this.getAllData();
-        article.id = Math.max(...data.articles.map(a => a.id), 0) + 1;
-        article.views = 0;
-        article.publishDate = article.publishDate || new Date().toISOString().split('T')[0];
-        article.likes = article.likes || 0;
-        data.articles.unshift(article);
-        
-        // 同步分类和标签统计（传入data对象，避免重复获取）
-        this.syncCategoryStatsWithData(data);
-        this.syncTagStatsWithData(data);
-        
-        // 最后统一保存
-        this.saveAllData(data);
-        
-        console.log('✅ 文章添加成功，ID:', article.id);
-        return article;
-    }
-
-    updateArticle(id, updates) {
-        const data = this.getAllData();
-        const index = data.articles.findIndex(article => article.id === parseInt(id));
-        if (index !== -1) {
-            data.articles[index] = { ...data.articles[index], ...updates };
+    async addArticle(article) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const articleData = {
+                ...article,
+                views: 0,
+                publishDate: article.publishDate || new Date().toISOString().split('T')[0],
+                likes: article.likes || 0
+            };
             
-            // 同步分类和标签统计（传入data对象，避免重复获取）
-            this.syncCategoryStatsWithData(data);
-            this.syncTagStatsWithData(data);
+            const response = await fetch(`${apiBase}/articles`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(articleData)
+            });
             
-            // 最后统一保存
-            this.saveAllData(data);
-            
-            console.log('✅ 文章更新成功，ID:', id);
-            return data.articles[index];
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 文章已保存到KV数据库:', result.data.id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API保存失败:', response.status, errorText);
+                throw new Error(`文章创建失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 添加文章失败:', error);
+            throw error;
         }
-        return null;
     }
 
-    deleteArticle(id) {
-        const data = this.getAllData();
-        data.articles = data.articles.filter(article => article.id !== parseInt(id));
-        
-        // 同步分类和标签统计（传入data对象，避免重复获取）
-        this.syncCategoryStatsWithData(data);
-        this.syncTagStatsWithData(data);
-        
-        // 最后统一保存
-        this.saveAllData(data);
-        
-        console.log('✅ 文章删除成功，ID:', id);
+    async updateArticle(id, updates) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/articles/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 文章已更新到KV数据库:', id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API更新失败:', response.status, errorText);
+                throw new Error(`文章更新失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 更新文章失败:', error);
+            throw error;
+        }
+    }
+
+    async deleteArticle(id) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/articles/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                console.log('✅ 文章已从KV数据库删除:', id);
+                return { success: true };
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API删除失败:', response.status, errorText);
+                throw new Error(`文章删除失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 删除文章失败:', error);
+            throw error;
+        }
     }
 
     // 分类相关方法
@@ -576,30 +613,78 @@ class BlogDataStore {
         });
     }
 
-    addCategory(category) {
-        const data = this.getAllData();
-        category.id = Math.max(...data.categories.map(c => c.id), 0) + 1;
-        category.count = 0;
-        data.categories.push(category);
-        this.saveAllData(data);
-        return category;
-    }
-
-    updateCategory(id, updates) {
-        const data = this.getAllData();
-        const index = data.categories.findIndex(cat => cat.id === parseInt(id));
-        if (index !== -1) {
-            data.categories[index] = { ...data.categories[index], ...updates };
-            this.saveAllData(data);
-            return data.categories[index];
+    async addCategory(category) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const categoryData = {
+                ...category,
+                count: 0
+            };
+            
+            const response = await fetch(`${apiBase}/categories`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(categoryData)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 分类已保存到KV数据库:', result.data.id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API保存失败:', response.status, errorText);
+                throw new Error(`分类创建失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 添加分类失败:', error);
+            throw error;
         }
-        return null;
     }
 
-    deleteCategory(id) {
-        const data = this.getAllData();
-        data.categories = data.categories.filter(cat => cat.id !== parseInt(id));
-        this.saveAllData(data);
+    async updateCategory(id, updates) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/categories/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 分类已更新到KV数据库:', id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API更新失败:', response.status, errorText);
+                throw new Error(`分类更新失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 更新分类失败:', error);
+            throw error;
+        }
+    }
+
+    async deleteCategory(id) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/categories/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                console.log('✅ 分类已从KV数据库删除:', id);
+                return { success: true };
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API删除失败:', response.status, errorText);
+                throw new Error(`分类删除失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 删除分类失败:', error);
+            throw error;
+        }
     }
 
     // 标签相关方法
@@ -656,30 +741,78 @@ class BlogDataStore {
         });
     }
 
-    addTag(tag) {
-        const data = this.getAllData();
-        tag.id = Math.max(...data.tags.map(t => t.id), 0) + 1;
-        tag.count = 0;
-        data.tags.push(tag);
-        this.saveAllData(data);
-        return tag;
-    }
-
-    updateTag(id, updates) {
-        const data = this.getAllData();
-        const index = data.tags.findIndex(tag => tag.id === parseInt(id));
-        if (index !== -1) {
-            data.tags[index] = { ...data.tags[index], ...updates };
-            this.saveAllData(data);
-            return data.tags[index];
+    async addTag(tag) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const tagData = {
+                ...tag,
+                count: 0
+            };
+            
+            const response = await fetch(`${apiBase}/tags`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(tagData)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 标签已保存到KV数据库:', result.data.id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API保存失败:', response.status, errorText);
+                throw new Error(`标签创建失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 添加标签失败:', error);
+            throw error;
         }
-        return null;
     }
 
-    deleteTag(id) {
-        const data = this.getAllData();
-        data.tags = data.tags.filter(tag => tag.id !== parseInt(id));
-        this.saveAllData(data);
+    async updateTag(id, updates) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/tags/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 标签已更新到KV数据库:', id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API更新失败:', response.status, errorText);
+                throw new Error(`标签更新失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 更新标签失败:', error);
+            throw error;
+        }
+    }
+
+    async deleteTag(id) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/tags/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                console.log('✅ 标签已从KV数据库删除:', id);
+                return { success: true };
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API删除失败:', response.status, errorText);
+                throw new Error(`标签删除失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 删除标签失败:', error);
+            throw error;
+        }
     }
 
     // 评论相关方法
@@ -691,31 +824,79 @@ class BlogDataStore {
         return data.comments;
     }
 
-    addComment(comment) {
-        const data = this.getAllData();
-        comment.id = Math.max(...data.comments.map(c => c.id), 0) + 1;
-        comment.time = new Date().toISOString();
-        comment.status = data.settings.commentModeration ? 'pending' : 'approved';
-        data.comments.unshift(comment);
-        this.saveAllData(data);
-        return comment;
-    }
-
-    updateComment(id, updates) {
-        const data = this.getAllData();
-        const index = data.comments.findIndex(comment => comment.id === parseInt(id));
-        if (index !== -1) {
-            data.comments[index] = { ...data.comments[index], ...updates };
-            this.saveAllData(data);
-            return data.comments[index];
+    async addComment(comment) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const commentData = {
+                ...comment,
+                time: new Date().toISOString(),
+                status: 'pending' // 默认待审核
+            };
+            
+            const response = await fetch(`${apiBase}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(commentData)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 评论已保存到KV数据库:', result.data.id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API保存失败:', response.status, errorText);
+                throw new Error(`评论创建失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 添加评论失败:', error);
+            throw error;
         }
-        return null;
     }
 
-    deleteComment(id) {
-        const data = this.getAllData();
-        data.comments = data.comments.filter(comment => comment.id !== parseInt(id));
-        this.saveAllData(data);
+    async updateComment(id, updates) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/comments/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 评论已更新到KV数据库:', id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API更新失败:', response.status, errorText);
+                throw new Error(`评论更新失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 更新评论失败:', error);
+            throw error;
+        }
+    }
+
+    async deleteComment(id) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/comments/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                console.log('✅ 评论已从KV数据库删除:', id);
+                return { success: true };
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API删除失败:', response.status, errorText);
+                throw new Error(`评论删除失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 删除评论失败:', error);
+            throw error;
+        }
     }
 
     // 留言相关方法
@@ -724,39 +905,82 @@ class BlogDataStore {
         return data.guestbook || [];
     }
     
-    addGuestbookMessage(message) {
-        const data = this.getAllData();
-        if (!data.guestbook) {
-            data.guestbook = [];
+    async addGuestbookMessage(message) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const timestamp = new Date().toISOString();
+            const messageData = {
+                ...message,
+                time: timestamp,
+                createdAt: timestamp,
+                likes: 0,
+                pinned: false
+            };
+            
+            const response = await fetch(`${apiBase}/guestbook`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(messageData)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 留言已保存到KV数据库:', result.data.id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API保存失败:', response.status, errorText);
+                throw new Error(`留言创建失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 添加留言失败:', error);
+            throw error;
         }
-        message.id = Math.max(...data.guestbook.map(m => m.id), 0) + 1;
-        const timestamp = new Date().toISOString();
-        message.time = timestamp;  // 主要字段
-        message.createdAt = timestamp;  // 兼容字段
-        message.likes = 0;
-        message.pinned = false;
-        data.guestbook.unshift(message);
-        this.saveAllData(data);
-        return message;
     }
     
-    updateGuestbookMessage(id, updates) {
-        const data = this.getAllData();
-        if (!data.guestbook) return null;
-        const index = data.guestbook.findIndex(m => m.id === parseInt(id));
-        if (index !== -1) {
-            data.guestbook[index] = { ...data.guestbook[index], ...updates };
-            this.saveAllData(data);
-            return data.guestbook[index];
+    async updateGuestbookMessage(id, updates) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/guestbook/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 留言已更新到KV数据库:', id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API更新失败:', response.status, errorText);
+                throw new Error(`留言更新失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 更新留言失败:', error);
+            throw error;
         }
-        return null;
     }
     
-    deleteGuestbookMessage(id) {
-        const data = this.getAllData();
-        if (!data.guestbook) return;
-        data.guestbook = data.guestbook.filter(m => m.id !== parseInt(id));
-        this.saveAllData(data);
+    async deleteGuestbookMessage(id) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/guestbook/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                console.log('✅ 留言已从KV数据库删除:', id);
+                return { success: true };
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API删除失败:', response.status, errorText);
+                throw new Error(`留言删除失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 删除留言失败:', error);
+            throw error;
+        }
     }
     
     toggleGuestbookLike(id) {
@@ -801,27 +1025,27 @@ class BlogDataStore {
     }
 
     async updateSettings(updates) {
-        if (this.useApi) {
-            try {
-                const response = await fetch(`${this.apiUrl}/settings`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updates)
-                });
-                if (!response.ok) throw new Error('更新设置失败');
-                return await response.json();
-            } catch (error) {
-                console.error('API更新设置失败，使用localStorage:', error);
-                const data = this.getAllData();
-                data.settings = { ...data.settings, ...updates };
-                this.saveAllData(data);
-                return data.settings;
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/settings`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 设置已更新到KV数据库');
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API更新失败:', response.status, errorText);
+                throw new Error(`设置更新失败: ${response.status} - ${errorText}`);
             }
+        } catch (error) {
+            console.error('❌ 更新设置失败:', error);
+            throw error;
         }
-        const data = this.getAllData();
-        data.settings = { ...data.settings, ...updates };
-        this.saveAllData(data);
-        return data.settings;
     }
 
     // 统计方法
@@ -943,83 +1167,46 @@ class BlogDataStore {
 
     async updateImage(id, updates) {
         try {
-            // 尝试通过API更新JSON文件
-            try {
-                const apiBase = this.getApiBaseURL();
-                const response = await fetch(`${apiBase}/images/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updates)
-                });
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    console.log('✅ 图片记录已更新到 images.json:', id);
-                    
-                    // 同时更新localStorage
-                    const mediaData = JSON.parse(localStorage.getItem('blog_media') || '[]');
-                    const index = mediaData.findIndex(img => img.id === parseInt(id));
-                    if (index !== -1) {
-                        mediaData[index] = { ...mediaData[index], ...updates };
-                        localStorage.setItem('blog_media', JSON.stringify(mediaData));
-                    }
-                    
-                    return result.data;
-                } else {
-                    throw new Error('API更新失败');
-                }
-            } catch (apiError) {
-                console.warn('⚠️ API更新失败，使用localStorage:', apiError.message);
-                
-                // 回退到localStorage
-                const mediaData = JSON.parse(localStorage.getItem('blog_media') || '[]');
-                const index = mediaData.findIndex(img => img.id === parseInt(id));
-                if (index !== -1) {
-                    mediaData[index] = { ...mediaData[index], ...updates };
-                    localStorage.setItem('blog_media', JSON.stringify(mediaData));
-                    return mediaData[index];
-                }
-                return null;
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/images/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 图片已更新到KV数据库:', id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API更新失败:', response.status, errorText);
+                throw new Error(`图片更新失败: ${response.status} - ${errorText}`);
             }
         } catch (error) {
             console.error('❌ 更新图片失败:', error);
-            return null;
+            throw error;
         }
     }
 
     async deleteImage(id) {
         try {
-            // 尝试通过API删除JSON文件中的记录
-            try {
-                const apiBase = this.getApiBaseURL();
-                const response = await fetch(`${apiBase}/images/${id}`, {
-                    method: 'DELETE'
-                });
-                
-                if (response.ok) {
-                    console.log('✅ 图片记录已从 images.json 删除:', id);
-                    
-                    // 同时从localStorage删除
-                    const mediaData = JSON.parse(localStorage.getItem('blog_media') || '[]');
-                    const filtered = mediaData.filter(img => img.id !== parseInt(id));
-                    localStorage.setItem('blog_media', JSON.stringify(filtered));
-                    
-                    return { success: true };
-                } else {
-                    throw new Error('API删除失败');
-                }
-            } catch (apiError) {
-                console.warn('⚠️ API删除失败，使用localStorage:', apiError.message);
-                
-                // 回退到localStorage
-                const mediaData = JSON.parse(localStorage.getItem('blog_media') || '[]');
-                const filtered = mediaData.filter(img => img.id !== parseInt(id));
-                localStorage.setItem('blog_media', JSON.stringify(filtered));
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/images/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                console.log('✅ 图片已从KV数据库删除:', id);
                 return { success: true };
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API删除失败:', response.status, errorText);
+                throw new Error(`图片删除失败: ${response.status} - ${errorText}`);
             }
         } catch (error) {
             console.error('❌ 删除图片失败:', error);
-            return { success: false, error: error.message };
+            throw error;
         }
     }
 
@@ -1034,33 +1221,78 @@ class BlogDataStore {
         return data.music?.find(m => m.id === parseInt(id));
     }
 
-    addMusic(music) {
-        const data = this.getAllData();
-        if (!data.music) data.music = [];
-        music.id = Math.max(...data.music.map(m => m.id), 0) + 1;
-        music.uploadDate = new Date().toISOString().split('T')[0];
-        data.music.unshift(music);
-        this.saveAllData(data);
-        return music;
-    }
-
-    updateMusic(id, updates) {
-        const data = this.getAllData();
-        if (!data.music) return null;
-        const index = data.music.findIndex(m => m.id === parseInt(id));
-        if (index !== -1) {
-            data.music[index] = { ...data.music[index], ...updates };
-            this.saveAllData(data);
-            return data.music[index];
+    async addMusic(music) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const musicData = {
+                ...music,
+                uploadDate: new Date().toISOString().split('T')[0]
+            };
+            
+            const response = await fetch(`${apiBase}/music`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(musicData)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 音乐已保存到KV数据库:', result.data.id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API保存失败:', response.status, errorText);
+                throw new Error(`音乐创建失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 添加音乐失败:', error);
+            throw error;
         }
-        return null;
     }
 
-    deleteMusic(id) {
-        const data = this.getAllData();
-        if (!data.music) return;
-        data.music = data.music.filter(m => m.id !== parseInt(id));
-        this.saveAllData(data);
+    async updateMusic(id, updates) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/music/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 音乐已更新到KV数据库:', id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API更新失败:', response.status, errorText);
+                throw new Error(`音乐更新失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 更新音乐失败:', error);
+            throw error;
+        }
+    }
+
+    async deleteMusic(id) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/music/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                console.log('✅ 音乐已从KV数据库删除:', id);
+                return { success: true };
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API删除失败:', response.status, errorText);
+                throw new Error(`音乐删除失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 删除音乐失败:', error);
+            throw error;
+        }
     }
 
     // 视频管理方法
@@ -1074,33 +1306,78 @@ class BlogDataStore {
         return data.videos?.find(v => v.id === parseInt(id));
     }
 
-    addVideo(video) {
-        const data = this.getAllData();
-        if (!data.videos) data.videos = [];
-        video.id = Math.max(...data.videos.map(v => v.id), 0) + 1;
-        video.uploadDate = new Date().toISOString().split('T')[0];
-        data.videos.unshift(video);
-        this.saveAllData(data);
-        return video;
-    }
-
-    updateVideo(id, updates) {
-        const data = this.getAllData();
-        if (!data.videos) return null;
-        const index = data.videos.findIndex(v => v.id === parseInt(id));
-        if (index !== -1) {
-            data.videos[index] = { ...data.videos[index], ...updates };
-            this.saveAllData(data);
-            return data.videos[index];
+    async addVideo(video) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const videoData = {
+                ...video,
+                uploadDate: new Date().toISOString().split('T')[0]
+            };
+            
+            const response = await fetch(`${apiBase}/videos`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(videoData)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 视频已保存到KV数据库:', result.data.id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API保存失败:', response.status, errorText);
+                throw new Error(`视频创建失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 添加视频失败:', error);
+            throw error;
         }
-        return null;
     }
 
-    deleteVideo(id) {
-        const data = this.getAllData();
-        if (!data.videos) return;
-        data.videos = data.videos.filter(v => v.id !== parseInt(id));
-        this.saveAllData(data);
+    async updateVideo(id, updates) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/videos/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 视频已更新到KV数据库:', id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API更新失败:', response.status, errorText);
+                throw new Error(`视频更新失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 更新视频失败:', error);
+            throw error;
+        }
+    }
+
+    async deleteVideo(id) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/videos/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                console.log('✅ 视频已从KV数据库删除:', id);
+                return { success: true };
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API删除失败:', response.status, errorText);
+                throw new Error(`视频删除失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 删除视频失败:', error);
+            throw error;
+        }
     }
 
     // 兼容旧的 getMedia 方法
@@ -1242,44 +1519,85 @@ class BlogDataStore {
     }
 
     // 添加友情链接
-    addLink(link) {
-        const data = this.getAllData();
-        if (!data.links) data.links = [];
-        
-        const newLink = {
-            id: Date.now(),
-            name: link.name || '未命名',
-            url: link.url || '',
-            description: link.description || '',
-            avatar: link.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(link.name || 'Link') + '&size=200&background=4fc3f7&color=fff&bold=true',
-            category: link.category || '默认',
-            status: link.status || 'active',
-            addedDate: new Date().toISOString().split('T')[0]
-        };
-        
-        data.links.push(newLink);
-        this.saveAllData(data);
-        return newLink;
+    async addLink(link) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const linkData = {
+                name: link.name || '未命名',
+                url: link.url || '',
+                description: link.description || '',
+                avatar: link.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(link.name || 'Link') + '&size=200&background=4fc3f7&color=fff&bold=true',
+                category: link.category || '默认',
+                status: link.status || 'active',
+                addedDate: new Date().toISOString().split('T')[0]
+            };
+            
+            const response = await fetch(`${apiBase}/links`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(linkData)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 友情链接已保存到KV数据库:', result.data.id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API保存失败:', response.status, errorText);
+                throw new Error(`友情链接创建失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 添加友情链接失败:', error);
+            throw error;
+        }
     }
 
     // 更新友情链接
-    updateLink(id, updates) {
-        const data = this.getAllData();
-        const index = data.links.findIndex(link => link.id === id);
-        
-        if (index !== -1) {
-            data.links[index] = { ...data.links[index], ...updates };
-            this.saveAllData(data);
-            return data.links[index];
+    async updateLink(id, updates) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/links/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 友情链接已更新到KV数据库:', id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API更新失败:', response.status, errorText);
+                throw new Error(`友情链接更新失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 更新友情链接失败:', error);
+            throw error;
         }
-        return null;
     }
 
     // 删除友情链接
-    deleteLink(id) {
-        const data = this.getAllData();
-        data.links = data.links.filter(link => link.id !== id);
-        this.saveAllData(data);
+    async deleteLink(id) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/links/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                console.log('✅ 友情链接已从KV数据库删除:', id);
+                return { success: true };
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API删除失败:', response.status, errorText);
+                throw new Error(`友情链接删除失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 删除友情链接失败:', error);
+            throw error;
+        }
     }
 
     // 获取友情链接分类
@@ -1299,6 +1617,98 @@ class BlogDataStore {
     getActiveLinks() {
         const links = this.getLinks();
         return links.filter(link => link.status === 'active');
+    }
+
+    // ========== 用户管理方法 ==========
+    
+    // 获取所有用户
+    getUsers() {
+        const data = this.getAllData();
+        return data.users || [];
+    }
+
+    // 根据ID获取用户
+    getUserById(id) {
+        const users = this.getUsers();
+        return users.find(user => user.id === id || String(user.id) === String(id));
+    }
+
+    // 根据用户名获取用户
+    getUserByUsername(username) {
+        const users = this.getUsers();
+        return users.find(user => user.username === username);
+    }
+
+    // 添加用户
+    async addUser(userData) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/users`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(userData)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 用户已保存到KV数据库:', result.data.id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API保存失败:', response.status, errorText);
+                throw new Error(`用户创建失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 添加用户失败:', error);
+            throw error;
+        }
+    }
+
+    // 更新用户
+    async updateUser(id, updates) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/users/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 用户已更新到KV数据库:', id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API更新失败:', response.status, errorText);
+                throw new Error(`用户更新失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 更新用户失败:', error);
+            throw error;
+        }
+    }
+
+    // 删除用户
+    async deleteUser(id) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/users/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                console.log('✅ 用户已从KV数据库删除:', id);
+                return { success: true };
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API删除失败:', response.status, errorText);
+                throw new Error(`用户删除失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 删除用户失败:', error);
+            throw error;
+        }
     }
 }
 

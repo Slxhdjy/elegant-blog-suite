@@ -261,23 +261,47 @@ class AppsAdminManager {
             
             let response;
             
-            if (this.currentApp) {
-                // 更新现有应用
-                const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
-                response = await fetch(`${apiBase}/apps/${this.currentApp.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
+            // 在Vercel环境下，只使用环境适配器，不回退
+            if (window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
+                console.log('🌐 Vercel环境：使用环境适配器保存应用');
+                
+                if (this.currentApp) {
+                    // 更新现有应用
+                    const result = await window.environmentAdapter.updateItem('apps', this.currentApp.id, formData);
+                    if (!result.success) {
+                        throw new Error(result.message || '更新应用失败');
+                    }
+                } else {
+                    // 创建新应用
+                    formData.createdAt = new Date().toISOString();
+                    const result = await window.environmentAdapter.createItem('apps', formData);
+                    if (!result.success) {
+                        throw new Error(result.message || '创建应用失败');
+                    }
+                }
+                
+                // 模拟response对象
+                response = { ok: true, json: async () => ({ success: true }) };
             } else {
-                // 创建新应用
-                formData.createdAt = new Date().toISOString();
-                const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
-                response = await fetch(`${apiBase}/apps`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
+                // 非Vercel环境的处理
+                if (this.currentApp) {
+                    // 更新现有应用
+                    const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+                    response = await fetch(`${apiBase}/apps/${this.currentApp.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(formData)
+                    });
+                } else {
+                    // 创建新应用
+                    formData.createdAt = new Date().toISOString();
+                    const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+                    response = await fetch(`${apiBase}/apps`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(formData)
+                    });
+                }
             }
 
             const result = await response.json();
@@ -319,21 +343,35 @@ class AppsAdminManager {
         const newStatus = app.status === 'enabled' ? 'disabled' : 'enabled';
         
         try {
-            const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
-            const response = await fetch(`${apiBase}/apps/${appId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...app, status: newStatus })
-            });
-
-            const result = await response.json();
-            
-            if (result.success) {
-                console.log(`✅ 应用状态已更新为: ${newStatus}`);
-                await this.loadApps();
-                this.renderApps();
+            // 在Vercel环境下，只使用环境适配器，不回退
+            if (window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
+                console.log('🌐 Vercel环境：使用环境适配器切换应用状态');
+                const result = await window.environmentAdapter.updateItem('apps', appId, { ...app, status: newStatus });
+                if (result.success) {
+                    console.log(`✅ 应用状态已更新为: ${newStatus}`);
+                    await this.loadApps();
+                    this.renderApps();
+                } else {
+                    throw new Error(result.message || '状态更新失败');
+                }
             } else {
-                alert('状态更新失败');
+                // 非Vercel环境的处理
+                const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+                const response = await fetch(`${apiBase}/apps/${appId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...app, status: newStatus })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log(`✅ 应用状态已更新为: ${newStatus}`);
+                    await this.loadApps();
+                    this.renderApps();
+                } else {
+                    alert('状态更新失败');
+                }
             }
         } catch (error) {
             console.error('❌ 更新状态出错:', error);
@@ -356,30 +394,42 @@ class AppsAdminManager {
         }
 
         try {
-            // 检查是否为静态环境
-            const isStatic = window.location.hostname.includes('github.io') || 
-                            window.location.hostname.includes('vercel.app') ||
-                            !window.location.hostname.includes('localhost');
-            
-            if (isStatic) {
-                // 静态环境：显示提示信息
-                alert('静态部署环境下无法删除应用，请在本地环境使用完整功能');
-                return;
-            }
-            
-            const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
-            const response = await fetch(`${apiBase}/apps/${appId}`, {
-                method: 'DELETE'
-            });
-
-            const result = await response.json();
-            
-            if (result.success) {
-                console.log('✅ 应用已删除');
-                await this.loadApps();
-                this.renderApps();
+            // 在Vercel环境下，只使用环境适配器，不回退
+            if (window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
+                console.log('🌐 Vercel环境：使用环境适配器删除应用');
+                const result = await window.environmentAdapter.deleteItem('apps', appId);
+                if (result.success) {
+                    console.log('✅ 应用已删除');
+                    await this.loadApps();
+                    this.renderApps();
+                } else {
+                    throw new Error(result.message || '删除应用失败');
+                }
             } else {
-                alert('删除失败');
+                // 非Vercel环境的处理
+                // 检查是否为静态环境
+                const isStatic = window.location.hostname.includes('github.io') || 
+                                !window.location.hostname.includes('localhost');
+                
+                if (isStatic) {
+                    // 静态环境：显示提示信息
+                    alert('静态部署环境下无法删除应用，请在本地环境使用完整功能');
+                    return;
+                }
+                
+                const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+                const response = await fetch(`${apiBase}/apps/${appId}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('✅ 应用已删除');
+                    await this.loadApps();
+                    this.renderApps();
+                } else {
+                    alert('删除失败');
             }
         } catch (error) {
             console.error('❌ 删除应用出错:', error);

@@ -358,7 +358,20 @@ class EventsManager {
         try {
             console.log('💾 正在保存重要事项...');
             
-            // 使用环境适配器保存数据
+            // 在Vercel环境下，只使用环境适配器，不回退
+            if (window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
+                console.log('🌐 Vercel环境：使用环境适配器保存重要事项');
+                const result = await window.environmentAdapter.saveData('events', this.events);
+                if (result.success) {
+                    console.log('✅ 通过环境适配器保存重要事项成功');
+                    return true;
+                } else {
+                    console.error('❌ 环境适配器保存失败:', result.message);
+                    throw new Error(result.message || '保存重要事项失败');
+                }
+            }
+            
+            // 非Vercel环境：使用环境适配器或直接API调用
             if (window.environmentAdapter && window.environmentAdapter.supportsWrite) {
                 const result = await window.environmentAdapter.saveData('events', this.events);
                 if (result.success) {

@@ -189,6 +189,19 @@ class BlogDataStore {
                         uploadDate: '2025-11-14'
                     }
                 ],
+                users: [
+                    {
+                        id: "user_1763831613696",
+                        username: "admin",
+                        password: "admin123",
+                        role: "super_admin",
+                        email: "admin@example.com",
+                        displayName: "超级管理员",
+                        status: "active",
+                        createdAt: "2025-11-22T17:13:33.696Z",
+                        updatedAt: "2025-12-18T10:00:00.000Z"
+                    }
+                ],
                 settings: {
                     siteName: 'ℳঞ执念ꦿ的博客',
                     siteDescription: '一个记录生活和技术的博客',
@@ -472,23 +485,35 @@ class BlogDataStore {
         return data.articles.find(article => article.id === parseInt(id));
     }
 
-    addArticle(article) {
-        const data = this.getAllData();
-        article.id = Math.max(...data.articles.map(a => a.id), 0) + 1;
-        article.views = 0;
-        article.publishDate = article.publishDate || new Date().toISOString().split('T')[0];
-        article.likes = article.likes || 0;
-        data.articles.unshift(article);
-        
-        // 同步分类和标签统计（传入data对象，避免重复获取）
-        this.syncCategoryStatsWithData(data);
-        this.syncTagStatsWithData(data);
-        
-        // 最后统一保存
-        this.saveAllData(data);
-        
-        console.log('✅ 文章添加成功，ID:', article.id);
-        return article;
+    async addArticle(article) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const articleData = {
+                ...article,
+                views: 0,
+                publishDate: article.publishDate || new Date().toISOString().split('T')[0],
+                likes: article.likes || 0
+            };
+            
+            const response = await fetch(`${apiBase}/articles`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(articleData)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 文章已保存到KV数据库:', result.data.id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API保存失败:', response.status, errorText);
+                throw new Error(`文章创建失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 添加文章失败:', error);
+            throw error;
+        }
     }
 
     updateArticle(id, updates) {
@@ -1301,6 +1326,98 @@ class BlogDataStore {
     getActiveLinks() {
         const links = this.getLinks();
         return links.filter(link => link.status === 'active');
+    }
+
+    // ========== 用户管理方法 ==========
+    
+    // 获取所有用户
+    getUsers() {
+        const data = this.getAllData();
+        return data.users || [];
+    }
+
+    // 根据ID获取用户
+    getUserById(id) {
+        const users = this.getUsers();
+        return users.find(user => user.id === id || String(user.id) === String(id));
+    }
+
+    // 根据用户名获取用户
+    getUserByUsername(username) {
+        const users = this.getUsers();
+        return users.find(user => user.username === username);
+    }
+
+    // 添加用户
+    async addUser(userData) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/users`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(userData)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 用户已保存到KV数据库:', result.data.id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API保存失败:', response.status, errorText);
+                throw new Error(`用户创建失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 添加用户失败:', error);
+            throw error;
+        }
+    }
+
+    // 更新用户
+    async updateUser(id, updates) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/users/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ 用户已更新到KV数据库:', id);
+                return result.data;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API更新失败:', response.status, errorText);
+                throw new Error(`用户更新失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 更新用户失败:', error);
+            throw error;
+        }
+    }
+
+    // 删除用户
+    async deleteUser(id) {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/users/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                console.log('✅ 用户已从KV数据库删除:', id);
+                return { success: true };
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API删除失败:', response.status, errorText);
+                throw new Error(`用户删除失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ 删除用户失败:', error);
+            throw error;
+        }
     }
 }
 
