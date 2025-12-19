@@ -185,7 +185,7 @@ class DataAdapter {
 
     async addComment(comment) {
         try {
-            // 直接使用环境适配器的单项添加API
+            // 评论功能：直接使用API添加，不通过批量保存
             if (this.environmentAdapter.environment === 'vercel') {
                 const apiBase = this.environmentAdapter.apiBase || '/api';
                 const response = await fetch(`${apiBase}/comments`, {
@@ -221,10 +221,9 @@ class DataAdapter {
                 };
                 
                 comments.push(newComment);
-                console.warn('⚠️ 前台只读模式：评论添加仅在本地生效');
-                // await this.saveData('comments', comments); // 前台只读模式禁用
+                await this.saveData('comments', comments);
                 
-                console.log('📝 评论添加成功 (仅本地):', newComment);
+                console.log('✅ 评论添加成功:', newComment);
                 return newComment;
             }
         } catch (error) {
@@ -235,9 +234,21 @@ class DataAdapter {
 
     async updateComment(id, updates) {
         try {
-            // 在Vercel环境下使用单项更新API
+            // 评论更新：在Vercel环境下使用单项更新API
             if (this.environmentAdapter.environment === 'vercel') {
-                const result = await this.environmentAdapter.updateItem('comments', id, updates);
+                // 直接调用API更新，不通过环境适配器（避免被只读模式阻止）
+                const apiBase = this.environmentAdapter.apiBase || '/api';
+                const response = await fetch(`${apiBase}/comments?id=${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updates)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+                
+                const result = await response.json();
                 if (result.success) {
                     console.log('✅ 评论更新成功 (Vercel):', result.data);
                     return result.data;
@@ -251,9 +262,8 @@ class DataAdapter {
                 
                 if (index !== -1) {
                     comments[index] = { ...comments[index], ...updates };
-                    console.warn('⚠️ 前台只读模式：评论更新仅在本地生效');
-                    // await this.saveData('comments', comments); // 前台只读模式禁用
-                    console.log('📝 评论更新成功 (仅本地):', comments[index]);
+                    await this.saveData('comments', comments);
+                    console.log('✅ 评论更新成功 (本地):', comments[index]);
                     return comments[index];
                 }
                 
@@ -272,9 +282,8 @@ class DataAdapter {
             const filteredComments = comments.filter(c => c.id !== parseInt(id));
             
             if (filteredComments.length < comments.length) {
-                console.warn('⚠️ 前台只读模式：评论删除仅在本地生效');
-                // await this.saveData('comments', filteredComments); // 前台只读模式禁用
-                console.log('📝 评论删除成功 (仅本地):', id);
+                await this.saveData('comments', filteredComments);
+                console.log('✅ 评论删除成功:', id);
                 return { success: true };
             }
             
@@ -294,7 +303,7 @@ class DataAdapter {
 
     async addGuestbookMessage(message) {
         try {
-            // 直接使用环境适配器的单项添加API
+            // 留言功能：直接使用API添加，不通过批量保存
             if (this.environmentAdapter.environment === 'vercel') {
                 const apiBase = this.environmentAdapter.apiBase || '/api';
                 const response = await fetch(`${apiBase}/guestbook`, {
@@ -332,10 +341,9 @@ class DataAdapter {
                 };
                 
                 messages.push(newMessage);
-                console.warn('⚠️ 前台只读模式：留言添加仅在本地生效');
-                // await this.saveData('guestbook', messages); // 前台只读模式禁用
+                await this.saveData('guestbook', messages);
                 
-                console.log('📝 留言添加成功 (仅本地):', newMessage);
+                console.log('✅ 留言添加成功:', newMessage);
                 return newMessage;
             }
         } catch (error) {
@@ -346,19 +354,41 @@ class DataAdapter {
 
     async updateGuestbookMessage(id, updates) {
         try {
-            const messages = await this.getData('guestbook');
-            const index = messages.findIndex(m => m.id === parseInt(id));
-            
-            if (index !== -1) {
-                messages[index] = { ...messages[index], ...updates };
-                console.warn('⚠️ 前台只读模式：留言更新仅在本地生效');
-                // await this.saveData('guestbook', messages); // 前台只读模式禁用
-                console.log('📝 留言更新成功 (仅本地):', messages[index]);
-                return messages[index];
+            // 留言更新：支持点赞等操作
+            if (this.environmentAdapter.environment === 'vercel') {
+                // 直接调用API更新，不通过环境适配器（避免被只读模式阻止）
+                const apiBase = this.environmentAdapter.apiBase || '/api';
+                const response = await fetch(`${apiBase}/guestbook?id=${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updates)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                if (result.success) {
+                    console.log('✅ 留言更新成功 (Vercel):', result.data);
+                    return result.data;
+                } else {
+                    throw new Error(result.message || '更新失败');
+                }
+            } else {
+                const messages = await this.getData('guestbook');
+                const index = messages.findIndex(m => m.id === parseInt(id));
+                
+                if (index !== -1) {
+                    messages[index] = { ...messages[index], ...updates };
+                    await this.saveData('guestbook', messages);
+                    console.log('✅ 留言更新成功:', messages[index]);
+                    return messages[index];
+                }
+                
+                console.warn('⚠️ 未找到留言:', id);
+                return null;
             }
-            
-            console.warn('⚠️ 未找到留言:', id);
-            return null;
         } catch (error) {
             console.error('❌ 更新留言失败:', error);
             throw error;
@@ -371,9 +401,8 @@ class DataAdapter {
             const filteredMessages = messages.filter(m => m.id !== parseInt(id));
             
             if (filteredMessages.length < messages.length) {
-                console.warn('⚠️ 前台只读模式：留言删除仅在本地生效');
-                // await this.saveData('guestbook', filteredMessages); // 前台只读模式禁用
-                console.log('📝 留言删除成功 (仅本地):', id);
+                await this.saveData('guestbook', filteredMessages);
+                console.log('✅ 留言删除成功:', id);
                 return { success: true };
             }
             
@@ -385,20 +414,7 @@ class DataAdapter {
         }
     }
 
-    async addGuestbookMessage(message) {
-        console.warn('⚠️ 前台只读模式，无法添加留言');
-        return null;
-    }
 
-    async updateGuestbookMessage(id, updates) {
-        console.warn('⚠️ 前台只读模式，无法更新留言');
-        return null;
-    }
-
-    async deleteGuestbookMessage(id) {
-        console.warn('⚠️ 前台只读模式，无法删除留言');
-        return { success: false };
-    }
 
     // ========== 设置相关方法 ==========
     
@@ -473,7 +489,6 @@ class DataAdapter {
                 totalViews: calculatedViews,
                 note: '前台不会自动保存统计数据，避免覆盖后台数据'
             });
-        }
         }
         
         return {

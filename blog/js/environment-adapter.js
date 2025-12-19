@@ -153,8 +153,31 @@ class EnvironmentAdapter {
         }
     }
     
-    // Vercel环境：前台只读模式，禁止保存到云存储
+    // Vercel环境：前台智能写入模式
     async saveDataToVercel(resource, data) {
+        // 允许评论和留言的批量保存（用户交互功能）
+        if (resource === 'comments' || resource === 'guestbook') {
+            try {
+                const response = await fetch(`${this.apiBase}/${resource}/batch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Vercel save error: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log(`✅ ${resource} 批量保存成功`);
+                return result;
+            } catch (error) {
+                console.error(`❌ Vercel保存${resource}失败:`, error);
+                return { success: false, message: error.message };
+            }
+        }
+        
+        // 禁止其他资源的批量保存（防止覆盖后台数据）
         console.warn('⚠️ 前台只读模式：禁止保存数据到后端，避免覆盖后台数据');
         console.log('📝 尝试保存的数据 (仅记录，不执行):', { resource, dataLength: Array.isArray(data) ? data.length : 'object' });
         return { success: false, message: '前台只读模式：禁止写入操作' };
@@ -251,9 +274,9 @@ class EnvironmentAdapter {
         setTimeout(() => notice.remove(), 4000);
     }
     
-    // 前台只读模式：禁止所有写入操作
+    // 前台智能写入模式：支持用户交互功能，禁止系统数据覆盖
     get supportsWrite() {
-        return false; // 前台强制只读模式，防止覆盖后台数据
+        return this.environment === 'vercel' || this.environment === 'local';
     }
     
     // 获取环境信息
