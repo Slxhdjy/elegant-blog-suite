@@ -24,7 +24,8 @@ class EventsManager {
             }
             
             // 降级到直接API调用
-            const response = await fetch('/api/events');
+            const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+            const response = await fetch(`${apiBase}/events`);
             
             if (!response.ok) {
                 console.error('❌ HTTP错误:', response.status, response.statusText);
@@ -384,7 +385,8 @@ class EventsManager {
             }
             
             // 降级到直接API调用
-            const response = await fetch('/api/events/batch', {
+            const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+            const response = await fetch(`${apiBase}/events/batch`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

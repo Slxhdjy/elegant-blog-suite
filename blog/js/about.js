@@ -49,7 +49,8 @@ class AboutPage {
         try {
             // 优先从API获取
             if (window.DataAdapter && window.DataAdapter.useApiMode) {
-                const response = await fetch('/api/settings');
+                const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+                const response = await fetch(`${apiBase}/settings`);
                 if (response.ok) {
                     return await response.json();
                 }

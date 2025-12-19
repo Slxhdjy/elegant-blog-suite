@@ -18,9 +18,10 @@ class BlogDataStore {
         const hostname = window.location.hostname;
         if (hostname.includes('vercel.app') || 
             hostname.includes('vercel.com') ||
-            hostname.includes('web3v.vip') || 
-            hostname.includes('slxhdjy.top')) {
+            hostname.includes('web3v.vip')) {
             return '/api'; // Vercel环境
+        } else if (hostname.includes('slxhdjy.top')) {
+            return 'https://www.slxhdjy.top/api'; // 特定域名使用完整URL
         } else if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
             return 'http://localhost:3001/api'; // 本地环境
         } else {

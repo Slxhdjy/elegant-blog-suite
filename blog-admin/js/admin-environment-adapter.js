@@ -45,9 +45,15 @@ class AdminEnvironmentAdapter {
     
     // 获取API基础路径
     getApiBase() {
+        const hostname = window.location.hostname;
+        
         switch (this.environment) {
             case 'vercel':
-                return '/api'; // Vercel Functions
+                // 特殊处理 slxhdjy.top 域名
+                if (hostname.includes('slxhdjy.top')) {
+                    return 'https://www.slxhdjy.top/api';
+                }
+                return '/api'; // 其他 Vercel Functions
             case 'local':
                 return 'http://localhost:3001/api'; // 本地服务器
             case 'github-pages':

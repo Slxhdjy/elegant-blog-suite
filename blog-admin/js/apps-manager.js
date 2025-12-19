@@ -39,7 +39,8 @@ class AppsAdminManager {
                 hostname.includes('web3v.vip') || 
                 hostname.includes('slxhdjy.top')) {
                 // Vercel环境：使用API
-                url = '/api/apps';
+                const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+                url = `${apiBase}/apps`;
                 console.log('🌐 Vercel环境：使用API加载');
             } else if (hostname.includes('github.io')) {
                 // GitHub Pages：使用绝对路径
@@ -48,9 +49,10 @@ class AppsAdminManager {
             } else if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
                 // 本地环境：优先尝试API
                 try {
-                    const apiResponse = await fetch('/api/apps');
+                    const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+                    const apiResponse = await fetch(`${apiBase}/apps`);
                     if (apiResponse.ok) {
-                        url = '/api/apps';
+                        url = `${apiBase}/apps`;
                         console.log('🏠 本地环境：使用API');
                     } else {
                         throw new Error('API不可用');

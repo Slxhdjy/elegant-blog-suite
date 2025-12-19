@@ -42,7 +42,8 @@ const AuthManager = {
                 console.log('🌐 Vercel环境：使用KV数据库验证登录');
                 
                 // 直接调用API验证用户
-                const response = await fetch('/api/users', {
+                const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+                const response = await fetch(`${apiBase}/users`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

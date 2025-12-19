@@ -195,7 +195,8 @@ class DataAdapter {
         try {
             // 直接使用环境适配器的单项添加API
             if (this.environmentAdapter.environment === 'vercel') {
-                const response = await fetch('/api/comments', {
+                const apiBase = this.environmentAdapter.apiBase || '/api';
+                const response = await fetch(`${apiBase}/comments`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(comment)
@@ -300,7 +301,8 @@ class DataAdapter {
         try {
             // 直接使用环境适配器的单项添加API
             if (this.environmentAdapter.environment === 'vercel') {
-                const response = await fetch('/api/guestbook', {
+                const apiBase = this.environmentAdapter.apiBase || '/api';
+                const response = await fetch(`${apiBase}/guestbook`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(message)

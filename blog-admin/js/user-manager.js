@@ -371,7 +371,8 @@ class UserManager {
             if (window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
                 console.log('🌐 Vercel环境：使用API修改密码');
                 
-                const response = await fetch('/api/users', {
+                const apiBase = window.environmentAdapter ? window.environmentAdapter.apiBase : '/api';
+                const response = await fetch(`${apiBase}/users`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
