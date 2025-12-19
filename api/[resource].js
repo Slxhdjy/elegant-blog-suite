@@ -96,6 +96,55 @@ export default async function handler(req, res) {
       case 'POST':
         console.log('POST请求详情:', { url: req.url, resource, body: requestBody });
         
+        // 处理用户登录验证
+        if (resource === 'users' && requestBody.action === 'validate_login') {
+          console.log('🔐 处理用户登录验证');
+          const { username, password } = requestBody;
+          
+          if (!username || !password) {
+            return res.status(400).json({ 
+              success: false, 
+              message: '用户名和密码不能为空' 
+            });
+          }
+          
+          const users = await kv.get('users') || [];
+          const user = users.find(u => u.username === username);
+          
+          if (!user) {
+            return res.json({
+              success: false,
+              message: '用户名不存在'
+            });
+          }
+          
+          if (user.status !== 'active') {
+            return res.json({
+              success: false,
+              message: '用户已被禁用'
+            });
+          }
+          
+          if (user.password !== password) {
+            return res.json({
+              success: false,
+              message: '密码错误'
+            });
+          }
+          
+          console.log('✅ 用户登录验证成功:', username);
+          return res.json({
+            success: true,
+            message: '登录成功',
+            user: {
+              username: user.username,
+              role: user.role,
+              displayName: user.displayName,
+              email: user.email
+            }
+          });
+        }
+        
         if (req.url.includes('/batch')) {
           // 批量导入
           console.log('执行批量导入操作');

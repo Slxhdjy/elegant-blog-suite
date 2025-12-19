@@ -36,12 +36,88 @@ const AuthManager = {
     
     // 登录
     async login(username, password) {
-        // 使用用户管理器验证登录
-        if (typeof window.userManager !== 'undefined') {
-            const result = await window.userManager.validateLogin(username, password);
+        try {
+            // 在Vercel环境下，直接使用API验证
+            if (window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
+                console.log('🌐 Vercel环境：使用KV数据库验证登录');
+                
+                // 直接调用API验证用户
+                const response = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'validate_login',
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API请求失败: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 生成简单的token
+                    const token = btoa(`${username}:${Date.now()}`);
+                    const now = Date.now().toString();
+                    
+                    localStorage.setItem('admin_token', token);
+                    localStorage.setItem('admin_username', username);
+                    localStorage.setItem('admin_login_time', now);
+                    localStorage.setItem('admin_last_activity', now);
+                    
+                    console.log('✅ Vercel环境登录成功');
+                    return {
+                        success: true,
+                        message: '登录成功',
+                        user: result.user
+                    };
+                }
+                
+                return result;
+            }
             
-            if (result.success) {
-                // 生成简单的token
+            // 使用用户管理器验证登录（本地环境）
+            if (typeof window.userManager !== 'undefined') {
+                const result = await window.userManager.validateLogin(username, password);
+                
+                if (result.success) {
+                    // 生成简单的token
+                    const token = btoa(`${username}:${Date.now()}`);
+                    const now = Date.now().toString();
+                    
+                    localStorage.setItem('admin_token', token);
+                    localStorage.setItem('admin_username', username);
+                    localStorage.setItem('admin_login_time', now);
+                    localStorage.setItem('admin_last_activity', now);
+                    
+                    return {
+                        success: true,
+                        message: '登录成功',
+                        user: result.user
+                    };
+                }
+                
+                return result;
+            }
+            
+            // 最后的降级处理：如果用户管理器未加载，使用旧方法
+            console.warn('⚠️ 用户管理器未加载，使用降级认证方式');
+            
+            const correctPassword = this.getPassword(username);
+            
+            if (!correctPassword) {
+                return {
+                    success: false,
+                    message: '用户名不存在'
+                };
+            }
+            
+            if (correctPassword === password) {
                 const token = btoa(`${username}:${Date.now()}`);
                 const now = Date.now().toString();
                 
@@ -52,45 +128,21 @@ const AuthManager = {
                 
                 return {
                     success: true,
-                    message: '登录成功',
-                    user: result.user
+                    message: '登录成功'
                 };
             }
             
-            return result;
-        }
-        
-        // 降级处理：如果用户管理器未加载，使用旧方法
-        console.warn('⚠️ 用户管理器未加载，使用降级认证方式');
-        
-        const correctPassword = this.getPassword(username);
-        
-        if (!correctPassword) {
             return {
                 success: false,
-                message: '用户名不存在'
+                message: '用户名或密码错误'
             };
-        }
-        
-        if (correctPassword === password) {
-            const token = btoa(`${username}:${Date.now()}`);
-            const now = Date.now().toString();
-            
-            localStorage.setItem('admin_token', token);
-            localStorage.setItem('admin_username', username);
-            localStorage.setItem('admin_login_time', now);
-            localStorage.setItem('admin_last_activity', now);
-            
+        } catch (error) {
+            console.error('❌ 登录验证失败:', error);
             return {
-                success: true,
-                message: '登录成功'
+                success: false,
+                message: '登录失败: ' + error.message
             };
         }
-        
-        return {
-            success: false,
-            message: '用户名或密码错误'
-        };
     },
     
     // 登出

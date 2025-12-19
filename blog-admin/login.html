@@ -464,7 +464,19 @@
         </div>
     </div>
 
+    <!-- 环境适配器 -->
+    <script src="js/admin-environment-adapter.js"></script>
+    
+    <!-- 认证系统 -->
     <script src="js/auth.js"></script>
+    
+    <script>
+        // 初始化环境适配器
+        window.environmentAdapter = new AdminEnvironmentAdapter();
+        console.log('🌍 登录页面环境适配器已初始化:', window.environmentAdapter.environment);
+    </script>
+    
+    <!-- 背景系统 -->
     <script src="js/admin-background.js"></script>
     <script>
         // 创建动态背景粒子
