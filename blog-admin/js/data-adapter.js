@@ -873,6 +873,39 @@ class DataAdapter {
     }
 
     async updateUser(id, updates) {
+        // 在Vercel环境下，使用API直接更新单个用户
+        if (this.useEnvironmentAdapter && window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
+            console.log('🌐 Vercel环境：使用API更新用户', id);
+            try {
+                const response = await fetch(`/api/users/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ...updates,
+                        updatedAt: new Date().toISOString()
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`更新用户失败: ${response.status} - ${errorText}`);
+                }
+                
+                const result = await response.json();
+                if (result.success) {
+                    return result.data;
+                } else {
+                    throw new Error(result.error || '更新用户失败');
+                }
+            } catch (error) {
+                console.error('❌ Vercel用户更新失败:', error);
+                throw error;
+            }
+        }
+        
+        // 非Vercel环境的处理
         const users = await this.getUsers();
         const index = users.findIndex(u => u.id == id || String(u.id) === String(id));
         
@@ -891,6 +924,35 @@ class DataAdapter {
     }
 
     async deleteUser(id) {
+        // 在Vercel环境下，使用API直接删除单个用户
+        if (this.useEnvironmentAdapter && window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
+            console.log('🌐 Vercel环境：使用API删除用户', id);
+            try {
+                const response = await fetch(`/api/users/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`删除用户失败: ${response.status} - ${errorText}`);
+                }
+                
+                const result = await response.json();
+                if (result.success) {
+                    return true;
+                } else {
+                    throw new Error(result.error || '删除用户失败');
+                }
+            } catch (error) {
+                console.error('❌ Vercel用户删除失败:', error);
+                throw error;
+            }
+        }
+        
+        // 非Vercel环境的处理
         const users = await this.getUsers();
         const filteredUsers = users.filter(u => u.id != id && String(u.id) !== String(id));
         

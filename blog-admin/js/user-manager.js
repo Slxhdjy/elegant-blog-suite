@@ -354,34 +354,68 @@ class UserManager {
     }
     
     // 修改密码
-    changePassword(username, oldPassword, newPassword) {
-        const user = this.getUser(username);
-        
-        if (!user) {
+    async changePassword(username, oldPassword, newPassword) {
+        try {
+            // 在Vercel环境下，直接使用API修改密码
+            if (window.environmentAdapter && window.environmentAdapter.environment === 'vercel') {
+                console.log('🌐 Vercel环境：使用API修改密码');
+                
+                const response = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'change_password',
+                        username: username,
+                        oldPassword: oldPassword,
+                        newPassword: newPassword
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API请求失败: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                return result;
+            }
+            
+            // 非Vercel环境的处理
+            const user = await this.getUser(username);
+            
+            if (!user) {
+                return {
+                    success: false,
+                    message: '用户不存在'
+                };
+            }
+            
+            // 验证旧密码
+            if (user.password !== oldPassword) {
+                return {
+                    success: false,
+                    message: '当前密码错误'
+                };
+            }
+            
+            // 验证新密码
+            if (!newPassword || newPassword.length < 6) {
+                return {
+                    success: false,
+                    message: '新密码至少需要6位'
+                };
+            }
+            
+            // 更新密码
+            return await this.updateUser(username, { password: newPassword });
+        } catch (error) {
+            console.error('❌ 修改密码失败:', error);
             return {
                 success: false,
-                message: '用户不存在'
+                message: '修改密码失败: ' + error.message
             };
         }
-        
-        // 验证旧密码
-        if (user.password !== oldPassword) {
-            return {
-                success: false,
-                message: '当前密码错误'
-            };
-        }
-        
-        // 验证新密码
-        if (!newPassword || newPassword.length < 6) {
-            return {
-                success: false,
-                message: '新密码至少需要6位'
-            };
-        }
-        
-        // 更新密码
-        return this.updateUser(username, { password: newPassword });
     }
     
     // 重置密码（仅管理员）
