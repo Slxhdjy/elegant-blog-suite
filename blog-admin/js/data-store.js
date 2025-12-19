@@ -31,14 +31,26 @@ class BlogDataStore {
 
     // 初始化数据
     initializeData() {
-        // 检查用户配置
-        const userConfig = localStorage.getItem('use_json_mode');
-        if (userConfig === 'false') {
+        // 直接检测Vercel环境，避免覆盖KV数据
+        const hostname = window.location.hostname;
+        const isVercelEnv = hostname.includes('vercel.app') || 
+                           hostname.includes('vercel.com') ||
+                           hostname.includes('web3v.vip') || 
+                           hostname.includes('slxhdjy.top');
+        
+        if (isVercelEnv) {
             this.useJSONFiles = false;
-            console.log('💾 使用 localStorage 存储');
+            console.log('🚫 Vercel环境检测：强制禁用JSON文件模式，使用KV数据库');
         } else {
-            this.useJSONFiles = true;
-            console.log('📁 使用 JSON 文件存储');
+            // 检查用户配置
+            const userConfig = localStorage.getItem('use_json_mode');
+            if (userConfig === 'false') {
+                this.useJSONFiles = false;
+                console.log('💾 使用 localStorage 存储');
+            } else {
+                this.useJSONFiles = true;
+                console.log('📁 使用 JSON 文件存储');
+            }
         }
         
         if (!localStorage.getItem('blogData')) {
@@ -255,11 +267,24 @@ class BlogDataStore {
         return JSON.parse(localStorage.getItem('blogData'));
     }
     
-    // 🔥 异步获取所有数据（优先从 JSON 文件）
+    // 🔥 异步获取所有数据（Vercel环境下禁用JSON文件加载）
     async getAllDataAsync() {
-        if (this.useJSONFiles && !this.dataLoaded) {
+        // 在Vercel环境下不加载JSON文件，避免覆盖KV数据
+        const hostname = window.location.hostname;
+        const isVercelEnv = hostname.includes('vercel.app') || 
+                           hostname.includes('vercel.com') ||
+                           hostname.includes('web3v.vip') || 
+                           hostname.includes('slxhdjy.top');
+        
+        if (this.useJSONFiles && !this.dataLoaded && !isVercelEnv) {
+            console.log('📁 从JSON文件加载数据 (非Vercel环境)');
             return await this.loadDataFromJSON();
         }
+        
+        if (isVercelEnv && this.useJSONFiles) {
+            console.log('🚫 Vercel环境：跳过JSON文件加载，使用localStorage缓存');
+        }
+        
         return this.getAllData();
     }
 
