@@ -58,8 +58,8 @@ class DataAdapter {
 
     // 获取API基础URL
     getApiBaseURL() {
-        // 优先使用环境适配器
-        if (window.environmentAdapter && window.environmentAdapter.apiBase) {
+        // 优先使用环境适配器（确保已初始化）
+        if (window.environmentAdapter && window.environmentAdapter.initialized && window.environmentAdapter.apiBase) {
             return window.environmentAdapter.apiBase;
         }
         

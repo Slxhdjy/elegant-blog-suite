@@ -23,18 +23,42 @@ document.addEventListener('DOMContentLoaded', async function() {
     // 初始化按钮事件
     initButtonEvents();
     
-    // 每5秒刷新一次仪表盘统计数据
+    // 每5分钟刷新一次仪表盘统计数据（降低频率）
     setInterval(() => {
         renderDashboard();
-    }, 5000);
+    }, 5 * 60 * 1000); // 5分钟而不是5秒
 });
+
+// 缓存变量
+let dashboardCache = {
+    lastUpdate: 0,
+    data: null
+};
 
 // 渲染仪表盘
 async function renderDashboard() {
     try {
+        // 如果缓存数据还在有效期内（2分钟），直接使用缓存
+        const now = Date.now();
+        if (dashboardCache.data && (now - dashboardCache.lastUpdate) < 2 * 60 * 1000) {
+            console.log('📋 使用缓存的仪表盘数据');
+            const { stats, articles, comments } = dashboardCache.data;
+            updateDashboardUI(stats, articles, comments);
+            return;
+        }
+        
+        console.log('📋 刷新仪表盘数据');
         const stats = await window.blogDataStore.getStats();
         const articles = await window.blogDataStore.getArticles('published');
         const comments = await window.blogDataStore.getComments();
+        
+        // 更新缓存
+        dashboardCache = {
+            lastUpdate: now,
+            data: { stats, articles, comments }
+        };
+        
+        updateDashboardUI(stats, articles, comments);
 
     // 更新统计卡片（带动画效果）
     const statCards = document.querySelectorAll('#page-dashboard .stat-card');
