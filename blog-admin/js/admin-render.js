@@ -48,8 +48,19 @@ document.addEventListener('DOMContentLoaded', async function() {
             showNotification('数据库配置错误，请检查 Vercel KV 设置', 'error');
         } else if (errorMessage.includes('fetch')) {
             showNotification('网络连接失败，请检查网络或稍后重试', 'error');
+        } else if (errorMessage.includes('is not a function')) {
+            // 方法不存在错误，静默处理并尝试重新加载
+            console.warn('⚠️ 数据存储方法未就绪，尝试重新加载...');
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+            showNotification('系统正在初始化，请稍候...', 'info');
         } else {
-            showNotification('数据加载失败：' + errorMessage, 'error');
+            showNotification('数据加载失败，正在重试...', 'warning');
+            // 3秒后自动重试
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
         }
     }
     
@@ -2767,21 +2778,49 @@ function closeExportMenu() {
 
 // 渲染留言列表
 async function renderGuestbookMessages() {
-    const messages = await window.blogDataStore.getGuestbookMessagesAsync();
     const messagesList = document.getElementById('adminMessagesList');
-    
     if (!messagesList) return;
     
+    try {
+        // 检查数据存储是否就绪
+        if (!window.blogDataStore || typeof window.blogDataStore.getGuestbookMessagesAsync !== 'function') {
+            console.warn('⚠️ 数据存储未就绪，使用备用方法');
+            // 使用同步方法作为备用
+            const messages = window.blogDataStore ? window.blogDataStore.getGuestbookMessages() : [];
+            renderGuestbookUI(messages, messagesList);
+            return;
+        }
+        
+        const messages = await window.blogDataStore.getGuestbookMessagesAsync();
+        renderGuestbookUI(messages, messagesList);
+    } catch (error) {
+        console.error('❌ 加载留言失败:', error);
+        messagesList.innerHTML = `
+            <div style="text-align: center; padding: 3rem; color: #f44336;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+                <p>留言加载失败</p>
+                <button class="btn-primary" onclick="renderGuestbookMessages()" style="margin-top: 1rem;">重试</button>
+            </div>
+        `;
+    }
+}
+
+// 渲染留言UI的辅助函数
+function renderGuestbookUI(messages, messagesList) {
     // 清除旧的事件监听器标记，确保重新渲染后能重新绑定事件
     const guestbookContainer = document.querySelector('#page-guestbook .guestbook-container');
     if (guestbookContainer) {
         guestbookContainer.dataset.hasListener = 'false';
     }
     
-    // 更新统计
-    document.getElementById('totalMessages').textContent = messages.length;
-    document.getElementById('pinnedMessages').textContent = messages.filter(m => m.pinned).length;
-    document.getElementById('totalLikes').textContent = messages.reduce((sum, m) => sum + (m.likes || 0), 0);
+    // 安全地更新统计
+    const totalMessagesEl = document.getElementById('totalMessages');
+    const pinnedMessagesEl = document.getElementById('pinnedMessages');
+    const totalLikesEl = document.getElementById('totalLikes');
+    
+    if (totalMessagesEl) totalMessagesEl.textContent = messages.length;
+    if (pinnedMessagesEl) pinnedMessagesEl.textContent = messages.filter(m => m.pinned).length;
+    if (totalLikesEl) totalLikesEl.textContent = messages.reduce((sum, m) => sum + (m.likes || 0), 0);
     
     if (messages.length === 0) {
         messagesList.innerHTML = `

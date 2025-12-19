@@ -96,12 +96,19 @@ class AdminEnvironmentAdapter {
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`❌ API错误响应:`, errorText);
+                
+                // 特殊处理设置不存在的情况
+                if (resource === 'settings' && response.status === 404) {
+                    console.warn(`⚠️ 设置数据不存在，这可能是首次使用或数据被意外删除`);
+                    throw new Error(`SETTINGS_NOT_FOUND: 设置数据不存在`);
+                }
+                
                 throw new Error(`Vercel API error: ${response.status} - ${errorText}`);
             }
             
             const result = await response.json();
             console.log(`✅ Vercel API获取${resource}成功:`, Array.isArray(result.data) ? `${result.data.length}条` : 'object');
-            return result.success ? result.data : (resource === 'settings' ? {} : []);
+            return result.success ? result.data : (resource === 'settings' ? null : []);
         } catch (error) {
             console.error(`❌ Vercel API获取${resource}失败:`, error);
             // Vercel环境下不降级，直接返回空数据并显示错误
@@ -317,7 +324,7 @@ class AdminEnvironmentAdapter {
     
     async updateItem(resource, id, updates) {
         try {
-            const url = `${this.apiBase}/${resource}/${id}`;
+            const url = `${this.apiBase}/${resource}?id=${id}`;
             console.log(`🔍 更新${resource}请求:`, { url, id, updates });
             
             const response = await fetch(url, {
@@ -354,7 +361,7 @@ class AdminEnvironmentAdapter {
     
     async deleteItem(resource, id) {
         try {
-            const url = `${this.apiBase}/${resource}/${id}`;
+            const url = `${this.apiBase}/${resource}?id=${id}`;
             console.log(`🔍 删除${resource}请求:`, { url, id });
             
             const response = await fetch(url, {

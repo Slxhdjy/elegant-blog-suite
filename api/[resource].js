@@ -76,7 +76,14 @@ export default async function handler(req, res) {
           
           if (resource === 'settings') {
             // settings是对象，不是数组
-            const settings = await kv.get('settings') || {};
+            const settings = await kv.get('settings');
+            if (!settings) {
+              return res.status(404).json({ 
+                success: false, 
+                error: '设置数据不存在',
+                code: 'SETTINGS_NOT_FOUND'
+              });
+            }
             return res.json({ success: true, data: settings });
           }
           
@@ -89,8 +96,20 @@ export default async function handler(req, res) {
           }
         } else {
           // 获取所有项目
-          const items = await kv.get(resource) || (resource === 'settings' ? {} : []);
-          return res.json({ success: true, data: items });
+          if (resource === 'settings') {
+            const settings = await kv.get('settings');
+            if (!settings) {
+              return res.status(404).json({ 
+                success: false, 
+                error: '设置数据不存在',
+                code: 'SETTINGS_NOT_FOUND'
+              });
+            }
+            return res.json({ success: true, data: settings });
+          } else {
+            const items = await kv.get(resource) || [];
+            return res.json({ success: true, data: items });
+          }
         }
 
       case 'POST':

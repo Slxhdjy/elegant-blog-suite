@@ -213,7 +213,7 @@ class EnvironmentAdapter {
     // Vercel环境：更新单个项目
     async updateItemToVercel(resource, id, updates) {
         try {
-            const response = await fetch(`${this.apiBase}/${resource}/${id}`, {
+            const response = await fetch(`${this.apiBase}/${resource}?id=${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updates)
@@ -234,7 +234,7 @@ class EnvironmentAdapter {
     // 本地环境：更新单个项目
     async updateItemToLocal(resource, id, updates) {
         try {
-            const response = await fetch(`${this.apiBase}/${resource}/${id}`, {
+            const response = await fetch(`${this.apiBase}/${resource}?id=${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updates)

@@ -1048,10 +1048,35 @@ class BlogDataStore {
     async updateSettings(updates) {
         try {
             const apiBase = this.getApiBaseURL();
+            
+            // 先获取现有设置，确保不会覆盖其他字段
+            let currentSettings = {};
+            try {
+                const getResponse = await fetch(`${apiBase}/settings`);
+                if (getResponse.ok) {
+                    const result = await getResponse.json();
+                    currentSettings = result.data || {};
+                }
+            } catch (error) {
+                console.warn('⚠️ 无法获取当前设置，将直接更新:', error.message);
+            }
+            
+            // 合并设置，保留现有字段
+            const mergedSettings = {
+                ...currentSettings,
+                ...updates
+            };
+            
+            console.log('🔄 更新设置:', {
+                current: Object.keys(currentSettings).length + ' 个字段',
+                updates: Object.keys(updates).length + ' 个字段',
+                merged: Object.keys(mergedSettings).length + ' 个字段'
+            });
+            
             const response = await fetch(`${apiBase}/settings`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates)
+                body: JSON.stringify(mergedSettings)
             });
             
             if (response.ok) {

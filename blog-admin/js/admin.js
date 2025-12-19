@@ -751,11 +751,35 @@ function showNotification(message, type = 'info') {
         existingNotif.remove();
     }
 
+    // 过滤技术性错误信息，提供用户友好的提示
+    let userMessage = message;
+    if (type === 'error') {
+        if (message.includes('is not a function')) {
+            userMessage = '系统正在初始化，请稍候...';
+            type = 'info';
+        } else if (message.includes('fetch')) {
+            userMessage = '网络连接失败，请检查网络连接';
+        } else if (message.includes('404')) {
+            userMessage = '请求的资源不存在，请稍后重试';
+        } else if (message.includes('500')) {
+            userMessage = '服务器暂时不可用，请稍后重试';
+        } else if (message.includes('KV')) {
+            userMessage = '数据库连接失败，请稍后重试';
+        }
+    }
+
     const colors = {
         success: '#4caf50',
         error: '#f44336',
         warning: '#ff9800',
         info: '#2196f3'
+    };
+
+    const icons = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️'
     };
 
     const notifHTML = `
@@ -770,8 +794,13 @@ function showNotification(message, type = 'info') {
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             z-index: 100000;
             animation: slideInRight 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            max-width: 350px;
         ">
-            ${message}
+            <span style="font-size: 1.2rem;">${icons[type]}</span>
+            <span>${userMessage}</span>
         </div>
     `;
 
