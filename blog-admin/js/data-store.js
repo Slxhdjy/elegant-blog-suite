@@ -38,6 +38,15 @@ class BlogDataStore {
                            hostname.includes('web3v.vip') || 
                            hostname.includes('slxhdjy.top');
         
+        console.log('🔍 环境检测详情:', {
+            hostname: hostname,
+            isVercelApp: hostname.includes('vercel.app'),
+            isVercelCom: hostname.includes('vercel.com'),
+            isWeb3v: hostname.includes('web3v.vip'),
+            isSlxhdjy: hostname.includes('slxhdjy.top'),
+            finalResult: isVercelEnv
+        });
+        
         if (isVercelEnv) {
             this.useJSONFiles = false;
             console.log('🚫 Vercel环境检测：强制禁用JSON文件模式，使用KV数据库');
@@ -275,6 +284,13 @@ class BlogDataStore {
                            hostname.includes('vercel.com') ||
                            hostname.includes('web3v.vip') || 
                            hostname.includes('slxhdjy.top');
+        
+        console.log('🔍 getAllDataAsync 环境检测:', {
+            hostname: hostname,
+            isVercelEnv: isVercelEnv,
+            useJSONFiles: this.useJSONFiles,
+            dataLoaded: this.dataLoaded
+        });
         
         if (this.useJSONFiles && !this.dataLoaded && !isVercelEnv) {
             console.log('📁 从JSON文件加载数据 (非Vercel环境)');
