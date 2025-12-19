@@ -1621,7 +1621,17 @@ document.addEventListener('DOMContentLoaded', function() {
     if (appsNavItem && !appsNavItem.hasAttribute('data-apps-bound')) {
         appsNavItem.setAttribute('data-apps-bound', 'true');
         appsNavItem.addEventListener('click', function() {
-            setTimeout(initAppsManager, 100);
+            setTimeout(() => {
+                if (typeof initAppsManager === 'function') {
+                    initAppsManager();
+                } else if (typeof AppsAdminManager !== 'undefined') {
+                    if (!window.appsAdminManager) {
+                        window.appsAdminManager = new AppsAdminManager();
+                    }
+                } else {
+                    console.warn('⚠️ 应用管理器未加载');
+                }
+            }, 100);
         });
     }
 });
@@ -1842,7 +1852,7 @@ function testPermissionSystem() {
         // 更新权限状态卡片
         updatePermissionStatusCard();
     } else {
-        console.error('❌ 未找到当前用户信息');
+        console.warn('⚠️ 未找到当前用户信息，可能权限管理器还未完全初始化');
     }
 }
 

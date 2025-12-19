@@ -477,6 +477,7 @@ class AppsAdminManager {
                     this.renderApps();
                 } else {
                     alert('删除失败');
+                }
             }
         } catch (error) {
             console.error('❌ 删除应用出错:', error);

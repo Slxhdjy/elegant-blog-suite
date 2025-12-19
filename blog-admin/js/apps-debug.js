@@ -71,13 +71,13 @@ function testAppsManagerInit() {
                 console.log('✅ 应用管理器实例已存在');
             }
         } else {
-            console.error('❌ AppsAdminManager 类不可用');
+            console.warn('⚠️ AppsAdminManager 类不可用，可能还未加载');
         }
         
         if (typeof initAppsManager === 'function') {
             console.log('✅ initAppsManager 函数可用');
         } else {
-            console.error('❌ initAppsManager 函数不可用');
+            console.warn('⚠️ initAppsManager 函数不可用，可能还未加载');
         }
         
     } catch (error) {

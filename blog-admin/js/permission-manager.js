@@ -115,6 +115,20 @@ class PermissionManager {
         }
 
         try {
+            // 等待数据存储准备就绪
+            let retryCount = 0;
+            const maxRetries = 5;
+            
+            while (!window.blogDataStore && retryCount < maxRetries) {
+                console.log(`⏳ 等待数据存储初始化... (${retryCount + 1}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                retryCount++;
+            }
+            
+            if (!window.blogDataStore) {
+                throw new Error('数据存储未初始化');
+            }
+            
             // 从用户数据中获取用户信息
             const users = await window.blogDataStore.getUsers();
             const user = users.find(u => u.username === username);
