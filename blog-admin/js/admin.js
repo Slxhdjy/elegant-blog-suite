@@ -1421,10 +1421,26 @@ function handleUserManagementClick(event) {
 // 加载分类列表
 async function loadCategoriesList() {
     try {
-        const categories = await window.dataAdapter.getCategories();
+        // 🔥 使用 blogDataStore 的异步方法
+        let categories = [];
+        if (window.blogDataStore && typeof window.blogDataStore.getCategoriesAsync === 'function') {
+            categories = await window.blogDataStore.getCategoriesAsync();
+        } else if (window.blogDataStore && typeof window.blogDataStore.getCategories === 'function') {
+            categories = window.blogDataStore.getCategories() || [];
+        } else if (window.dataAdapter && typeof window.dataAdapter.getCategories === 'function') {
+            categories = await window.dataAdapter.getCategories();
+        }
+        
         const tbody = document.getElementById('categoriesTable');
         
         if (!tbody) return;
+        
+        // 🔥 不再重复渲染，让 admin-render.js 的 renderCategoriesTable 处理
+        // 如果已经有内容且不是加载中状态，则跳过
+        if (tbody.innerHTML && !tbody.innerHTML.includes('加载中')) {
+            console.log('📋 分类表格已渲染，跳过重复渲染');
+            return;
+        }
         
         tbody.innerHTML = categories.map(category => `
             <tr>
@@ -1439,17 +1455,32 @@ async function loadCategoriesList() {
         `).join('');
     } catch (error) {
         console.error('加载分类列表失败:', error);
-        showNotification('加载分类列表失败', 'error');
+        // 🔥 不显示错误通知，因为 admin-render.js 会处理
     }
 }
 
 // 加载标签列表
 async function loadTagsList() {
     try {
-        const tags = await window.dataAdapter.getTags();
+        // 🔥 使用 blogDataStore 的异步方法
+        let tags = [];
+        if (window.blogDataStore && typeof window.blogDataStore.getTagsAsync === 'function') {
+            tags = await window.blogDataStore.getTagsAsync();
+        } else if (window.blogDataStore && typeof window.blogDataStore.getTags === 'function') {
+            tags = window.blogDataStore.getTags() || [];
+        } else if (window.dataAdapter && typeof window.dataAdapter.getTags === 'function') {
+            tags = await window.dataAdapter.getTags();
+        }
+        
         const tagsGrid = document.querySelector('.tags-grid');
         
         if (!tagsGrid) return;
+        
+        // 🔥 不再重复渲染，让 admin-render.js 的 renderTagsGrid 处理
+        if (tagsGrid.innerHTML && !tagsGrid.innerHTML.includes('加载中')) {
+            console.log('🏷️ 标签网格已渲染，跳过重复渲染');
+            return;
+        }
         
         tagsGrid.innerHTML = tags.map(tag => `
             <div class="tag-card">
@@ -1463,7 +1494,7 @@ async function loadTagsList() {
         `).join('');
     } catch (error) {
         console.error('加载标签列表失败:', error);
-        showNotification('加载标签列表失败', 'error');
+        // 🔥 不显示错误通知，因为 admin-render.js 会处理
     }
 }
 

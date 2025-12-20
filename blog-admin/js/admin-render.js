@@ -376,11 +376,30 @@ async function renderCategoriesTable() {
     }
     
     try {
+        // 🔥 等待数据存储就绪
+        if (!window.blogDataStore) {
+            console.log('⏳ 等待数据存储初始化...');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            if (!window.blogDataStore) {
+                throw new Error('数据存储未初始化');
+            }
+        }
+        
         // 🔥 使用异步方法获取分类
-        const categories = await window.blogDataStore.getCategoriesAsync();
+        let categories = [];
+        if (typeof window.blogDataStore.getCategoriesAsync === 'function') {
+            categories = await window.blogDataStore.getCategoriesAsync();
+        } else if (typeof window.blogDataStore.getCategories === 'function') {
+            categories = window.blogDataStore.getCategories() || [];
+        }
+        
+        if (!Array.isArray(categories)) {
+            console.warn('⚠️ 分类数据格式异常:', categories);
+            categories = [];
+        }
         
         // 按文章数量降序排序
-        const sortedCategories = [...categories].sort((a, b) => b.count - a.count);
+        const sortedCategories = [...categories].sort((a, b) => (b.count || 0) - (a.count || 0));
 
         tbody.innerHTML = sortedCategories.map(category => `
             <tr data-id="${category.id}">
@@ -418,11 +437,30 @@ async function renderTagsGrid() {
     tagsGrid.innerHTML = '<div style="text-align:center; padding:2rem; color:#999;">加载中...</div>';
     
     try {
+        // 🔥 等待数据存储就绪
+        if (!window.blogDataStore) {
+            console.log('⏳ 等待数据存储初始化...');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            if (!window.blogDataStore) {
+                throw new Error('数据存储未初始化');
+            }
+        }
+        
         // 🔥 使用异步方法获取标签
-        const tags = await window.blogDataStore.getTagsAsync();
+        let tags = [];
+        if (typeof window.blogDataStore.getTagsAsync === 'function') {
+            tags = await window.blogDataStore.getTagsAsync();
+        } else if (typeof window.blogDataStore.getTags === 'function') {
+            tags = window.blogDataStore.getTags() || [];
+        }
+        
+        if (!Array.isArray(tags)) {
+            console.warn('⚠️ 标签数据格式异常:', tags);
+            tags = [];
+        }
         
         // 按文章数量降序排序
-        const sortedTags = [...tags].sort((a, b) => b.count - a.count);
+        const sortedTags = [...tags].sort((a, b) => (b.count || 0) - (a.count || 0));
 
         // 清除旧的事件监听器标记，确保重新渲染后能重新绑定事件
         tagsGrid.dataset.hasListener = 'false';
