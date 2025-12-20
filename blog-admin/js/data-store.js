@@ -1,73 +1,212 @@
 // 博客数据存储管理
 class BlogDataStore {
     constructor() {
-        this.useJSONFiles = true; // 默认使用 JSON 文件
-        this.useApi = false; // 默认不使用 API
-        this.jsonBaseURL = '../data'; // JSON 文件目录
+        // 环境类型: 'local' | 'github-pages' | 'vercel'
+        this.environment = this.detectEnvironment();
+        this.useJSONFiles = this.environment !== 'vercel'; // 本地和GitHub Pages使用JSON
+        this.useApi = this.environment === 'vercel'; // 只有Vercel使用API
+        this.jsonBaseURL = this._calculateJsonBaseURL(); // 🔥 动态计算JSON文件目录
         this.dataLoaded = false; // 数据是否已加载
+        this._jsonDataCache = null; // JSON数据缓存
+        
+        console.log('🔍 BlogDataStore 初始化:', {
+            environment: this.environment,
+            useJSONFiles: this.useJSONFiles,
+            useApi: this.useApi,
+            jsonBaseURL: this.jsonBaseURL
+        });
+        
         this.initializeData();
     }
+    
+    // 🔥 动态计算JSON文件基础URL
+    _calculateJsonBaseURL() {
+        const pathname = window.location.pathname;
+        console.log('📍 当前页面路径:', pathname);
+        
+        // 🔥 优先检查更具体的路径模式
+        
+        // 1. blog-admin/pages/ 下的页面 (如 blog-admin/pages/editor.html)
+        if (pathname.includes('/blog-admin/pages/')) {
+            console.log('📁 检测到 blog-admin/pages 子目录，使用 ../../data');
+            return '../../data';
+        }
+        
+        // 2. blog/pages/ 下的页面
+        if (pathname.includes('/blog/pages/')) {
+            console.log('📁 检测到 blog/pages 子目录，使用 ../../data');
+            return '../../data';
+        }
+        
+        // 3. blog-admin 目录下 (如 blog-admin/index.html)
+        if (pathname.includes('/blog-admin/')) {
+            console.log('📁 检测到 blog-admin 目录，使用 ../data');
+            return '../data';
+        }
+        
+        // 4. blog 目录下
+        if (pathname.includes('/blog/')) {
+            console.log('📁 检测到 blog 目录，使用 ../data');
+            return '../data';
+        }
+        
+        // 5. 默认情况（根目录）
+        console.log('📁 默认路径，使用 ./data');
+        return './data';
+    }
+    
+    // 🔥 环境检测 - 三种环境完全独立
+    detectEnvironment() {
+        const hostname = window.location.hostname;
+        const port = window.location.port;
+        
+        // 1. Vercel环境 - 使用KV数据库API
+        if (hostname.includes('vercel.app') || 
+            hostname.includes('vercel.com') ||
+            hostname.includes('web3v.vip') || 
+            hostname.includes('slxhdjy.top')) {
+            console.log('🌐 检测到 Vercel 环境');
+            return 'vercel';
+        }
+        
+        // 2. GitHub Pages环境 - 只读JSON文件
+        if (hostname.includes('github.io') || 
+            hostname.includes('githubusercontent.com')) {
+            console.log('📄 检测到 GitHub Pages 环境');
+            return 'github-pages';
+        }
+        
+        // 3. 本地开发环境 - JSON文件读写
+        if (hostname === 'localhost' || 
+            hostname === '127.0.0.1' || 
+            hostname.startsWith('192.168.') ||
+            port === '3000' || port === '3001' || port === '5500' || port === '8080') {
+            console.log('💻 检测到本地开发环境');
+            return 'local';
+        }
+        
+        // 默认当作本地环境处理
+        console.log('❓ 未知环境，默认使用本地模式');
+        return 'local';
+    }
 
-    // 获取API基础URL
+    // 获取API基础URL (仅Vercel环境使用)
     getApiBaseURL() {
-        // 优先使用环境适配器（确保已初始化）
+        if (this.environment !== 'vercel') {
+            console.warn('⚠️ 非Vercel环境不应调用API');
+        }
+        
+        // 优先使用环境适配器
         if (window.environmentAdapter && window.environmentAdapter.initialized && window.environmentAdapter.apiBase) {
             return window.environmentAdapter.apiBase;
         }
         
-        // 根据当前环境动态判断
         const hostname = window.location.hostname;
-        if (hostname.includes('vercel.app') || 
-            hostname.includes('vercel.com') ||
-            hostname.includes('web3v.vip')) {
-            return '/api'; // Vercel环境
-        } else if (hostname.includes('slxhdjy.top')) {
-            return 'https://www.slxhdjy.top/api'; // 特定域名使用完整URL
-        } else if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
-            return 'http://localhost:3001/api'; // 本地环境
+        if (hostname.includes('slxhdjy.top')) {
+            return 'https://www.slxhdjy.top/api';
+        }
+        return '/api';
+    }
+    
+    // 🔥 获取本地服务器API基础URL (本地环境使用)
+    getLocalApiBaseURL() {
+        // 本地服务器通常运行在 3001 端口
+        const port = window.location.port;
+        const hostname = window.location.hostname;
+        
+        // 如果当前就在本地服务器上，使用相对路径
+        if (port === '3001') {
+            return '/api';
+        }
+        
+        // 否则使用完整的本地服务器地址
+        return `http://${hostname}:3001/api`;
+    }
+    
+    // 🔥 检查本地服务器是否可用
+    async checkLocalServer() {
+        try {
+            const localApiBase = this.getLocalApiBaseURL();
+            const response = await fetch(`${localApiBase}/health`, {
+                method: 'GET',
+                signal: AbortSignal.timeout(2000)
+            });
+            return response.ok;
+        } catch (error) {
+            console.warn('⚠️ 本地服务器不可用:', error.message);
+            return false;
+        }
+    }
+    
+    // 🔥 通用的API请求方法 - 根据环境自动选择正确的API端点
+    async _apiRequest(resource, method, id = null, data = null) {
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持此操作');
+        }
+        
+        let apiBase;
+        let envLabel;
+        let usePathParams; // 是否使用路径参数格式
+        
+        if (this.environment === 'vercel') {
+            apiBase = this.getApiBaseURL();
+            envLabel = 'Vercel';
+            usePathParams = false; // Vercel API 使用查询参数
         } else {
-            return '/api'; // 默认使用相对路径
+            apiBase = this.getLocalApiBaseURL();
+            envLabel = '本地';
+            usePathParams = true; // 本地服务器使用路径参数 /api/resource/:id
+        }
+        
+        // 🔥 根据环境构建URL
+        let url = `${apiBase}/${resource}`;
+        if (id !== null) {
+            if (usePathParams) {
+                // 本地服务器: /api/tags/123
+                url += `/${id}`;
+            } else {
+                // Vercel API: /api/tags?id=123
+                url += `?id=${id}`;
+            }
+        }
+        
+        const options = {
+            method: method,
+            headers: { 'Content-Type': 'application/json' }
+        };
+        
+        if (data !== null && (method === 'POST' || method === 'PUT')) {
+            options.body = JSON.stringify(data);
+        }
+        
+        console.log(`📡 [${envLabel}] ${method} ${url}`);
+        
+        try {
+            const response = await fetch(url, options);
+            
+            if (response.ok) {
+                if (method === 'DELETE') {
+                    console.log(`✅ [${envLabel}] ${resource} 删除成功:`, id);
+                    return { success: true };
+                }
+                const result = await response.json();
+                const returnData = result.data || result;
+                console.log(`✅ [${envLabel}] ${resource} ${method === 'POST' ? '创建' : '更新'}成功:`, returnData.id || id);
+                return returnData;
+            } else {
+                const errorText = await response.text();
+                throw new Error(`${resource} 操作失败: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error(`❌ [${envLabel}] ${resource} ${method} 失败:`, error);
+            throw error;
         }
     }
 
     // 初始化数据
     initializeData() {
-        // 直接检测Vercel环境，避免覆盖KV数据
-        const hostname = window.location.hostname;
-        const isVercelEnv = hostname.includes('vercel.app') || 
-                           hostname.includes('vercel.com') ||
-                           hostname.includes('web3v.vip') || 
-                           hostname.includes('slxhdjy.top');
-        
-        console.log('🔍 BlogDataStore环境检测详情:', {
-            hostname: hostname,
-            isVercelApp: hostname.includes('vercel.app'),
-            isVercelCom: hostname.includes('vercel.com'),
-            isWeb3v: hostname.includes('web3v.vip'),
-            isSlxhdjy: hostname.includes('slxhdjy.top'),
-            finalResult: isVercelEnv
-        });
-        
-        if (isVercelEnv) {
-            this.useJSONFiles = false;
-            console.log('🚫 Vercel环境检测：强制禁用JSON文件模式，使用KV数据库');
-            // 设置API模式标志
-            this.useApi = true;
-        } else {
-            // 检查用户配置
-            const userConfig = localStorage.getItem('use_json_mode');
-            if (userConfig === 'false') {
-                this.useJSONFiles = false;
-                this.useApi = true;
-                console.log('💾 使用 API 模式');
-            } else {
-                this.useJSONFiles = true;
-                this.useApi = false;
-                console.log('📁 使用 JSON 文件存储');
-            }
-        }
-        
-        if (!localStorage.getItem('blogData')) {
+        // 只在本地环境初始化localStorage默认数据
+        if (this.environment === 'local' && !localStorage.getItem('blogData')) {
             const initialData = {
                 articles: [
                     {
@@ -251,12 +390,14 @@ class BlogDataStore {
         
         const resources = ['articles', 'categories', 'tags', 'comments', 'guestbook', 'images', 'music', 'videos', 'links', 'settings'];
         const data = {};
+        let loadedCount = 0;
         
         for (const resource of resources) {
             try {
                 const response = await fetch(`${this.jsonBaseURL}/${resource}.json`);
                 if (response.ok) {
                     data[resource] = await response.json();
+                    loadedCount++;
                     console.log(`✅ 加载 ${resource}.json:`, Array.isArray(data[resource]) ? data[resource].length + ' 条' : 'object');
                 } else {
                     console.warn(`⚠️ 无法加载 ${resource}.json: HTTP ${response.status}`);
@@ -268,12 +409,36 @@ class BlogDataStore {
             }
         }
         
-        // 保存到 localStorage 作为缓存
-        localStorage.setItem('blogData', JSON.stringify(data));
-        this.dataLoaded = true;
-        
-        console.log('✅ 数据加载完成');
-        return data;
+        // 🔥 只有在成功加载了数据时才保存到 localStorage
+        // 避免用空数据覆盖已有数据
+        if (loadedCount > 0) {
+            // 获取现有的 localStorage 数据
+            const existingData = this.getAllData() || {};
+            
+            // 合并数据：只覆盖成功加载的资源
+            const mergedData = { ...existingData };
+            for (const resource of resources) {
+                // 只有当新数据不为空时才覆盖
+                if (resource === 'settings') {
+                    if (Object.keys(data[resource]).length > 0) {
+                        mergedData[resource] = data[resource];
+                    }
+                } else {
+                    if (Array.isArray(data[resource]) && data[resource].length > 0) {
+                        mergedData[resource] = data[resource];
+                    }
+                }
+            }
+            
+            localStorage.setItem('blogData', JSON.stringify(mergedData));
+            console.log(`✅ 数据加载完成，成功加载 ${loadedCount}/${resources.length} 个资源`);
+            this.dataLoaded = true;
+            return mergedData;
+        } else {
+            console.warn('⚠️ 没有成功加载任何 JSON 文件，保留现有 localStorage 数据');
+            this.dataLoaded = true;
+            return this.getAllData();
+        }
     }
     
     // 获取所有数据
@@ -519,449 +684,466 @@ class BlogDataStore {
         }
     }
 
-    // 文章相关方法
+    // ========== 文章相关方法 ==========
+    
+    // 🔥 根据环境获取文章 - 三种环境完全独立
     async getArticles(status = null) {
-        // 强制检查Vercel环境，直接使用API
-        const hostname = window.location.hostname;
-        const isVercelEnv = hostname.includes('vercel.app') || 
-                           hostname.includes('vercel.com') ||
-                           hostname.includes('web3v.vip') || 
-                           hostname.includes('slxhdjy.top');
+        console.log(`📚 getArticles 调用，环境: ${this.environment}`);
         
-        if (isVercelEnv || this.useApi) {
-            try {
-                const apiBase = this.getApiBaseURL();
-                console.log('📡 从API获取文章列表，URL:', `${apiBase}/articles`);
-                
-                const response = await fetch(`${apiBase}/articles`);
-                
-                if (!response.ok) {
-                    throw new Error(`API请求失败: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                console.log('✅ API返回文章列表:', result);
-                
-                let articles = [];
-                if (result.success && result.data) {
-                    articles = result.data;
-                } else if (Array.isArray(result)) {
-                    articles = result;
-                } else {
-                    console.warn('⚠️ API返回格式异常:', result);
-                    articles = [];
-                }
-                
-                console.log('📊 文章数据处理完成:', articles.length, '篇');
-                
-                if (status) {
-                    return articles.filter(article => article.status === status);
-                }
-                return articles;
-            } catch (error) {
-                console.error('❌ API获取文章失败:', error);
-                // 降级到localStorage
-                console.log('🔄 降级到localStorage');
-            }
+        let articles = [];
+        
+        // 根据环境选择数据源
+        switch (this.environment) {
+            case 'vercel':
+                // Vercel环境 - 从API获取
+                articles = await this._getArticlesFromAPI();
+                break;
+            case 'github-pages':
+            case 'local':
+            default:
+                // 本地和GitHub Pages - 从JSON文件获取
+                articles = await this._getArticlesFromJSON();
+                break;
         }
         
-        // 降级方案：从localStorage获取
-        console.log('💾 从localStorage获取文章');
-        const data = this.getAllData();
-        if (status) {
-            return data.articles.filter(article => article.status === status);
+        // 按状态过滤
+        if (status && Array.isArray(articles)) {
+            return articles.filter(article => article.status === status);
         }
-        return data.articles;
-    }
-
-    getArticleById(id) {
-        const data = this.getAllData();
-        return data.articles.find(article => article.id === parseInt(id));
+        return articles || [];
     }
     
-    // 🔥 异步获取文章（直接从API获取，避免JSON文件加载）
+    // 从API获取文章 (Vercel环境)
+    async _getArticlesFromAPI() {
+        try {
+            const apiBase = this.getApiBaseURL();
+            console.log('📡 [Vercel] 从API获取文章列表:', `${apiBase}/articles`);
+            
+            const response = await fetch(`${apiBase}/articles`);
+            if (!response.ok) {
+                throw new Error(`API请求失败: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            let articles = [];
+            if (result.success && result.data) {
+                articles = result.data;
+            } else if (Array.isArray(result)) {
+                articles = result;
+            }
+            
+            console.log('✅ [Vercel] 文章获取成功:', articles.length, '篇');
+            return articles;
+        } catch (error) {
+            console.error('❌ [Vercel] API获取文章失败:', error);
+            return [];
+        }
+    }
+    
+    // 从JSON文件获取文章 (本地/GitHub Pages环境)
+    async _getArticlesFromJSON() {
+        try {
+            // 优先使用缓存
+            if (this._jsonDataCache && this._jsonDataCache.articles) {
+                console.log('📋 [JSON] 使用缓存的文章数据');
+                return this._jsonDataCache.articles;
+            }
+            
+            const url = `${this.jsonBaseURL}/articles.json`;
+            console.log('📁 [JSON] 从JSON文件获取文章, URL:', url);
+            
+            const response = await fetch(url);
+            console.log('📁 [JSON] 文章请求响应状态:', response.status, response.statusText);
+            
+            if (!response.ok) {
+                throw new Error(`JSON文件加载失败: ${response.status}`);
+            }
+            
+            const articles = await response.json();
+            
+            // 缓存数据
+            if (!this._jsonDataCache) this._jsonDataCache = {};
+            this._jsonDataCache.articles = articles;
+            
+            console.log('✅ [JSON] 文章加载成功:', articles.length, '篇');
+            return articles;
+        } catch (error) {
+            console.error('❌ [JSON] 加载文章失败:', error);
+            console.error('❌ [JSON] 错误详情:', error.message);
+            // 降级到localStorage
+            const data = this.getAllData();
+            console.log('📋 [JSON] 降级到localStorage, 文章数:', data?.articles?.length || 0);
+            return data?.articles || [];
+        }
+    }
+
+    // 根据ID获取文章
+    getArticleById(id) {
+        // 同步方法 - 从缓存或localStorage获取
+        if (this._jsonDataCache && this._jsonDataCache.articles) {
+            return this._jsonDataCache.articles.find(article => 
+                article.id === parseInt(id) || String(article.id) === String(id)
+            );
+        }
+        const data = this.getAllData();
+        return data?.articles?.find(article => 
+            article.id === parseInt(id) || String(article.id) === String(id)
+        );
+    }
+    
+    // 🔥 异步获取单篇文章 - 根据环境选择数据源
     async getArticleByIdAsync(id) {
-        console.log('🔍 getArticleByIdAsync 调用，ID:', id, 'Type:', typeof id);
+        console.log('🔍 getArticleByIdAsync 调用，ID:', id, '环境:', this.environment);
         
-        // 强制检查Vercel环境，直接使用API
-        const hostname = window.location.hostname;
-        const isVercelEnv = hostname.includes('vercel.app') || 
-                           hostname.includes('vercel.com') ||
-                           hostname.includes('web3v.vip') || 
-                           hostname.includes('slxhdjy.top');
-        
-        if (isVercelEnv || this.useApi) {
+        if (this.environment === 'vercel') {
+            // Vercel环境 - 从API获取
             try {
                 const apiBase = this.getApiBaseURL();
-                console.log('📡 从API获取文章，URL:', `${apiBase}/articles?id=${id}`);
-                
                 const response = await fetch(`${apiBase}/articles?id=${id}`);
                 
                 if (!response.ok) {
-                    if (response.status === 404) {
-                        console.warn('⚠️ 文章不存在，ID:', id);
-                        return null;
-                    }
+                    if (response.status === 404) return null;
                     throw new Error(`API请求失败: ${response.status}`);
                 }
                 
                 const result = await response.json();
-                console.log('✅ API返回结果:', result);
-                
                 if (result.success && result.data) {
-                    console.log('✅ 文章获取成功:', result.data.title);
                     return result.data;
-                } else {
-                    console.warn('⚠️ API返回格式异常:', result);
-                    return null;
                 }
+                return null;
             } catch (error) {
-                console.error('❌ API获取文章失败:', error);
-                // 降级到localStorage缓存
-                console.log('🔄 降级到localStorage缓存');
+                console.error('❌ [Vercel] 获取文章失败:', error);
+                return null;
             }
+        } else {
+            // 本地/GitHub Pages - 从JSON获取
+            const articles = await this._getArticlesFromJSON();
+            return articles.find(article => 
+                article.id === parseInt(id) || String(article.id) === String(id)
+            );
         }
-        
-        // 降级方案：从localStorage获取
-        console.log('💾 从localStorage获取文章');
-        const data = this.getAllData();
-        if (!data.articles || !Array.isArray(data.articles)) {
-            console.warn('⚠️ localStorage中没有文章数据');
-            return null;
-        }
-        
-        // 兼容不同ID类型
-        const article = data.articles.find(article => 
-            String(article.id) === String(id) || 
-            article.id === parseInt(id) || 
-            article.id == id
-        );
-        
-        console.log('🎯 localStorage查找结果:', article ? `找到文章: ${article.title}` : '未找到文章');
-        return article || null;
     }
 
+    // 添加文章
     async addArticle(article) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const articleData = {
-                ...article,
-                views: 0,
-                publishDate: article.publishDate || new Date().toISOString().split('T')[0],
-                likes: article.likes || 0
-            };
-            
-            const response = await fetch(`${apiBase}/articles`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(articleData)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 文章已保存到KV数据库:', result.data.id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API保存失败:', response.status, errorText);
-                throw new Error(`文章创建失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 添加文章失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持添加文章');
         }
+        
+        const articleData = {
+            ...article,
+            views: 0,
+            publishDate: article.publishDate || new Date().toISOString().split('T')[0],
+            likes: article.likes || 0
+        };
+        
+        const result = await this._apiRequest('articles', 'POST', null, articleData);
+        if (this._jsonDataCache) this._jsonDataCache.articles = null;
+        return result;
     }
 
     async updateArticle(id, updates) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/articles?id=${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 文章已更新到KV数据库:', id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API更新失败:', response.status, errorText);
-                throw new Error(`文章更新失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 更新文章失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持更新文章');
         }
+        
+        const result = await this._apiRequest('articles', 'PUT', id, updates);
+        if (this._jsonDataCache) this._jsonDataCache.articles = null;
+        return result;
     }
 
     async deleteArticle(id) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/articles?id=${id}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                console.log('✅ 文章已从KV数据库删除:', id);
-                return { success: true };
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API删除失败:', response.status, errorText);
-                throw new Error(`文章删除失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 删除文章失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持删除文章');
         }
+        
+        const result = await this._apiRequest('articles', 'DELETE', id);
+        if (this._jsonDataCache) this._jsonDataCache.articles = null;
+        return result;
     }
 
-    // 分类相关方法
-    getCategories() {
-        // 🔥 在Vercel环境下，同步方法返回空数组，应使用异步方法
-        const hostname = window.location.hostname;
-        const isVercelEnv = hostname.includes('vercel.app') || 
-                           hostname.includes('vercel.com') ||
-                           hostname.includes('web3v.vip') || 
-                           hostname.includes('slxhdjy.top');
-        
-        if (isVercelEnv) {
-            console.warn('⚠️ Vercel环境下请使用 getCategoriesAsync() 异步方法');
-            // 返回localStorage中的缓存数据（如果有）
-            const data = this.getAllData();
-            return data?.categories || [];
-        }
-        
-        const data = this.getAllData();
-        // 同步分类统计
-        this.syncCategoryStats();
-        return data.categories;
-    }
+    // ========== 分类相关方法 ==========
     
-    // 🔥 异步获取分类（优先从API获取）
-    async getCategoriesAsync() {
-        const hostname = window.location.hostname;
-        const isVercelEnv = hostname.includes('vercel.app') || 
-                           hostname.includes('vercel.com') ||
-                           hostname.includes('web3v.vip') || 
-                           hostname.includes('slxhdjy.top');
-        
-        if (isVercelEnv || this.useApi) {
-            try {
-                const apiBase = this.getApiBaseURL();
-                console.log('📡 从API获取分类列表，URL:', `${apiBase}/categories`);
-                
-                const response = await fetch(`${apiBase}/categories`);
-                if (!response.ok) {
-                    throw new Error(`API请求失败: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                console.log('✅ API返回分类列表:', result);
-                
-                let categories = [];
-                if (result.success && result.data) {
-                    categories = result.data;
-                } else if (Array.isArray(result)) {
-                    categories = result;
-                }
-                
-                return categories;
-            } catch (error) {
-                console.error('❌ API获取分类失败:', error);
-            }
+    // 同步获取分类 (用于兼容旧代码)
+    getCategories() {
+        // 从缓存获取
+        if (this._jsonDataCache && this._jsonDataCache.categories) {
+            return this._jsonDataCache.categories;
         }
-        
-        // 降级到localStorage
         const data = this.getAllData();
         return data?.categories || [];
     }
     
-    // 同步分类统计（独立调用版本）
+    // 🔥 异步获取分类 - 根据环境选择数据源
+    async getCategoriesAsync() {
+        console.log(`📂 getCategoriesAsync 调用，环境: ${this.environment}`);
+        
+        switch (this.environment) {
+            case 'vercel':
+                return await this._getCategoriesFromAPI();
+            case 'github-pages':
+            case 'local':
+            default:
+                return await this._getCategoriesFromJSON();
+        }
+    }
+    
+    // 从API获取分类 (Vercel环境)
+    async _getCategoriesFromAPI() {
+        try {
+            const apiBase = this.getApiBaseURL();
+            console.log('📡 [Vercel] 从API获取分类列表');
+            
+            const response = await fetch(`${apiBase}/categories`);
+            if (!response.ok) {
+                throw new Error(`API请求失败: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            let categories = [];
+            if (result.success && result.data) {
+                categories = result.data;
+            } else if (Array.isArray(result)) {
+                categories = result;
+            }
+            
+            console.log('✅ [Vercel] 分类获取成功:', categories.length, '个');
+            return categories;
+        } catch (error) {
+            console.error('❌ [Vercel] API获取分类失败:', error);
+            return [];
+        }
+    }
+    
+    // 从JSON文件获取分类 (本地/GitHub Pages环境)
+    async _getCategoriesFromJSON() {
+        try {
+            if (this._jsonDataCache && this._jsonDataCache.categories) {
+                console.log('📋 [JSON] 使用缓存的分类数据');
+                return this._jsonDataCache.categories;
+            }
+            
+            console.log('📁 [JSON] 从JSON文件获取分类');
+            const response = await fetch(`${this.jsonBaseURL}/categories.json`);
+            if (!response.ok) {
+                throw new Error(`JSON文件加载失败: ${response.status}`);
+            }
+            
+            const categories = await response.json();
+            
+            if (!this._jsonDataCache) this._jsonDataCache = {};
+            this._jsonDataCache.categories = categories;
+            
+            console.log('✅ [JSON] 分类加载成功:', categories.length, '个');
+            return categories;
+        } catch (error) {
+            console.error('❌ [JSON] 加载分类失败:', error);
+            const data = this.getAllData();
+            return data?.categories || [];
+        }
+    }
+    
+    // 同步分类统计（仅本地环境使用）
     syncCategoryStats() {
+        if (this.environment !== 'local') return;
         const data = this.getAllData();
-        this.syncCategoryStatsWithData(data);
-        this.saveAllData(data);
+        if (data) {
+            this.syncCategoryStatsWithData(data);
+            this.saveAllData(data);
+        }
     }
     
     // 同步分类统计（传入data对象，不保存）
     syncCategoryStatsWithData(data) {
-        const articles = data.articles;
+        if (!data || !data.articles || !data.categories) return;
         
-        // 统计每个分类的文章数
+        const articles = data.articles;
         const categoryCounts = {};
         articles.forEach(article => {
             const category = article.category || '未分类';
             categoryCounts[category] = (categoryCounts[category] || 0) + 1;
         });
         
-        // 更新现有分类的计数
         data.categories.forEach(cat => {
             cat.count = categoryCounts[cat.name] || 0;
-        });
-        
-        // 添加新出现的分类
-        Object.keys(categoryCounts).forEach(categoryName => {
-            const exists = data.categories.find(cat => cat.name === categoryName);
-            if (!exists) {
-                const newCategory = {
-                    id: Math.max(...data.categories.map(c => c.id), 0) + 1,
-                    name: categoryName,
-                    description: '',
-                    count: categoryCounts[categoryName]
-                };
-                data.categories.push(newCategory);
-            }
         });
     }
 
     async addCategory(category) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const categoryData = {
-                ...category,
-                count: 0
-            };
-            
-            const response = await fetch(`${apiBase}/categories`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(categoryData)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 分类已保存到KV数据库:', result.data.id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API保存失败:', response.status, errorText);
-                throw new Error(`分类创建失败: ${response.status} - ${errorText}`);
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持添加分类');
+        }
+        
+        const categoryData = {
+            ...category,
+            count: 0
+        };
+        
+        // 🔥 根据环境选择操作方式
+        if (this.environment === 'vercel') {
+            // Vercel环境 - 使用KV数据库API
+            try {
+                const apiBase = this.getApiBaseURL();
+                const response = await fetch(`${apiBase}/categories`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(categoryData)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ [Vercel] 分类已保存到KV数据库:', result.data.id);
+                    if (this._jsonDataCache) this._jsonDataCache.categories = null;
+                    return result.data;
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(`分类创建失败: ${response.status} - ${errorText}`);
+                }
+            } catch (error) {
+                console.error('❌ [Vercel] 添加分类失败:', error);
+                throw error;
             }
-        } catch (error) {
-            console.error('❌ 添加分类失败:', error);
-            throw error;
+        } else {
+            // 本地环境 - 使用本地服务器API操作JSON文件
+            try {
+                const localApiBase = this.getLocalApiBaseURL();
+                const response = await fetch(`${localApiBase}/categories`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(categoryData)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ [本地] 分类已保存到JSON文件:', result.data?.id || result.id);
+                    if (this._jsonDataCache) this._jsonDataCache.categories = null;
+                    return result.data || result;
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(`分类创建失败: ${response.status} - ${errorText}`);
+                }
+            } catch (error) {
+                console.error('❌ [本地] 添加分类失败:', error);
+                throw error;
+            }
         }
     }
 
     async updateCategory(id, updates) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/categories?id=${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 分类已更新到KV数据库:', id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API更新失败:', response.status, errorText);
-                throw new Error(`分类更新失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 更新分类失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持更新分类');
         }
+        
+        const result = await this._apiRequest('categories', 'PUT', id, updates);
+        if (this._jsonDataCache) this._jsonDataCache.categories = null;
+        return result;
     }
 
     async deleteCategory(id) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/categories?id=${id}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                console.log('✅ 分类已从KV数据库删除:', id);
-                return { success: true };
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API删除失败:', response.status, errorText);
-                throw new Error(`分类删除失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 删除分类失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持删除分类');
         }
+        
+        const result = await this._apiRequest('categories', 'DELETE', id);
+        if (this._jsonDataCache) this._jsonDataCache.categories = null;
+        return result;
     }
 
-    // 标签相关方法
-    getTags() {
-        // 🔥 在Vercel环境下，同步方法返回空数组，应使用异步方法
-        const hostname = window.location.hostname;
-        const isVercelEnv = hostname.includes('vercel.app') || 
-                           hostname.includes('vercel.com') ||
-                           hostname.includes('web3v.vip') || 
-                           hostname.includes('slxhdjy.top');
-        
-        if (isVercelEnv) {
-            console.warn('⚠️ Vercel环境下请使用 getTagsAsync() 异步方法');
-            const data = this.getAllData();
-            return data?.tags || [];
-        }
-        
-        const data = this.getAllData();
-        // 同步标签统计
-        this.syncTagStats();
-        return data.tags;
-    }
+    // ========== 标签相关方法 ==========
     
-    // 🔥 异步获取标签（优先从API获取）
-    async getTagsAsync() {
-        const hostname = window.location.hostname;
-        const isVercelEnv = hostname.includes('vercel.app') || 
-                           hostname.includes('vercel.com') ||
-                           hostname.includes('web3v.vip') || 
-                           hostname.includes('slxhdjy.top');
-        
-        if (isVercelEnv || this.useApi) {
-            try {
-                const apiBase = this.getApiBaseURL();
-                console.log('📡 从API获取标签列表，URL:', `${apiBase}/tags`);
-                
-                const response = await fetch(`${apiBase}/tags`);
-                if (!response.ok) {
-                    throw new Error(`API请求失败: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                console.log('✅ API返回标签列表:', result);
-                
-                let tags = [];
-                if (result.success && result.data) {
-                    tags = result.data;
-                } else if (Array.isArray(result)) {
-                    tags = result;
-                }
-                
-                return tags;
-            } catch (error) {
-                console.error('❌ API获取标签失败:', error);
-            }
+    // 同步获取标签 (用于兼容旧代码)
+    getTags() {
+        if (this._jsonDataCache && this._jsonDataCache.tags) {
+            return this._jsonDataCache.tags;
         }
-        
-        // 降级到localStorage
         const data = this.getAllData();
         return data?.tags || [];
     }
     
-    // 同步标签统计（独立调用版本）
+    // 🔥 异步获取标签 - 根据环境选择数据源
+    async getTagsAsync() {
+        console.log(`🏷️ getTagsAsync 调用，环境: ${this.environment}`);
+        
+        switch (this.environment) {
+            case 'vercel':
+                return await this._getTagsFromAPI();
+            case 'github-pages':
+            case 'local':
+            default:
+                return await this._getTagsFromJSON();
+        }
+    }
+    
+    // 从API获取标签 (Vercel环境)
+    async _getTagsFromAPI() {
+        try {
+            const apiBase = this.getApiBaseURL();
+            console.log('📡 [Vercel] 从API获取标签列表');
+            
+            const response = await fetch(`${apiBase}/tags`);
+            if (!response.ok) {
+                throw new Error(`API请求失败: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            let tags = [];
+            if (result.success && result.data) {
+                tags = result.data;
+            } else if (Array.isArray(result)) {
+                tags = result;
+            }
+            
+            console.log('✅ [Vercel] 标签获取成功:', tags.length, '个');
+            return tags;
+        } catch (error) {
+            console.error('❌ [Vercel] API获取标签失败:', error);
+            return [];
+        }
+    }
+    
+    // 从JSON文件获取标签 (本地/GitHub Pages环境)
+    async _getTagsFromJSON() {
+        try {
+            if (this._jsonDataCache && this._jsonDataCache.tags) {
+                console.log('📋 [JSON] 使用缓存的标签数据');
+                return this._jsonDataCache.tags;
+            }
+            
+            console.log('📁 [JSON] 从JSON文件获取标签');
+            const response = await fetch(`${this.jsonBaseURL}/tags.json`);
+            if (!response.ok) {
+                throw new Error(`JSON文件加载失败: ${response.status}`);
+            }
+            
+            const tags = await response.json();
+            
+            if (!this._jsonDataCache) this._jsonDataCache = {};
+            this._jsonDataCache.tags = tags;
+            
+            console.log('✅ [JSON] 标签加载成功:', tags.length, '个');
+            return tags;
+        } catch (error) {
+            console.error('❌ [JSON] 加载标签失败:', error);
+            const data = this.getAllData();
+            return data?.tags || [];
+        }
+    }
+    
+    // 同步标签统计（仅本地环境使用）
     syncTagStats() {
+        if (this.environment !== 'local') return;
         const data = this.getAllData();
-        this.syncTagStatsWithData(data);
-        this.saveAllData(data);
+        if (data) {
+            this.syncTagStatsWithData(data);
+            this.saveAllData(data);
+        }
     }
     
     // 同步标签统计（传入data对象，不保存）
     syncTagStatsWithData(data) {
-        const articles = data.articles;
+        if (!data || !data.articles || !data.tags) return;
         
-        // 统计每个标签的文章数
+        const articles = data.articles;
         const tagCounts = {};
         articles.forEach(article => {
             if (article.tags && Array.isArray(article.tags)) {
@@ -971,7 +1153,6 @@ class BlogDataStore {
             }
         });
         
-        // 更新现有标签的计数
         data.tags.forEach(tag => {
             tag.count = tagCounts[tag.name] || 0;
         });
@@ -991,341 +1172,316 @@ class BlogDataStore {
     }
 
     async addTag(tag) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const tagData = {
-                ...tag,
-                count: 0
-            };
-            
-            const response = await fetch(`${apiBase}/tags`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(tagData)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 标签已保存到KV数据库:', result.data.id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API保存失败:', response.status, errorText);
-                throw new Error(`标签创建失败: ${response.status} - ${errorText}`);
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持添加标签');
+        }
+        
+        const tagData = {
+            ...tag,
+            count: 0
+        };
+        
+        // 🔥 根据环境选择操作方式
+        if (this.environment === 'vercel') {
+            try {
+                const apiBase = this.getApiBaseURL();
+                const response = await fetch(`${apiBase}/tags`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(tagData)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ [Vercel] 标签已保存到KV数据库:', result.data.id);
+                    if (this._jsonDataCache) this._jsonDataCache.tags = null;
+                    return result.data;
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(`标签创建失败: ${response.status} - ${errorText}`);
+                }
+            } catch (error) {
+                console.error('❌ [Vercel] 添加标签失败:', error);
+                throw error;
             }
-        } catch (error) {
-            console.error('❌ 添加标签失败:', error);
-            throw error;
+        } else {
+            try {
+                const localApiBase = this.getLocalApiBaseURL();
+                const response = await fetch(`${localApiBase}/tags`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(tagData)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ [本地] 标签已保存到JSON文件:', result.data?.id || result.id);
+                    if (this._jsonDataCache) this._jsonDataCache.tags = null;
+                    return result.data || result;
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(`标签创建失败: ${response.status} - ${errorText}`);
+                }
+            } catch (error) {
+                console.error('❌ [本地] 添加标签失败:', error);
+                throw error;
+            }
         }
     }
 
     async updateTag(id, updates) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/tags?id=${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 标签已更新到KV数据库:', id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API更新失败:', response.status, errorText);
-                throw new Error(`标签更新失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 更新标签失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持更新标签');
         }
+        
+        const result = await this._apiRequest('tags', 'PUT', id, updates);
+        if (this._jsonDataCache) this._jsonDataCache.tags = null;
+        return result;
     }
 
     async deleteTag(id) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/tags?id=${id}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                console.log('✅ 标签已从KV数据库删除:', id);
-                return { success: true };
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API删除失败:', response.status, errorText);
-                throw new Error(`标签删除失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 删除标签失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持删除标签');
         }
+        
+        const result = await this._apiRequest('tags', 'DELETE', id);
+        if (this._jsonDataCache) this._jsonDataCache.tags = null;
+        return result;
     }
 
-    // 评论相关方法
+    // ========== 评论相关方法 ==========
+    
+    // 🔥 异步获取评论 - 根据环境选择数据源
     async getComments(status = null) {
-        // 强制检查Vercel环境，直接使用API
-        const hostname = window.location.hostname;
-        const isVercelEnv = hostname.includes('vercel.app') || 
-                           hostname.includes('vercel.com') ||
-                           hostname.includes('web3v.vip') || 
-                           hostname.includes('slxhdjy.top');
+        console.log(`💬 getComments 调用，环境: ${this.environment}`);
         
-        if (isVercelEnv || this.useApi) {
-            try {
-                const apiBase = this.getApiBaseURL();
-                console.log('📡 从API获取评论列表，URL:', `${apiBase}/comments`);
-                
-                const response = await fetch(`${apiBase}/comments`);
-                
-                if (!response.ok) {
-                    throw new Error(`API请求失败: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                console.log('✅ API返回评论列表:', result);
-                
-                let comments = [];
-                if (result.success && result.data) {
-                    comments = result.data;
-                } else if (Array.isArray(result)) {
-                    comments = result;
-                } else {
-                    console.warn('⚠️ API返回格式异常:', result);
-                    comments = [];
-                }
-                
-                console.log('📊 评论数据处理完成:', comments.length, '条');
-                
-                if (status) {
-                    return comments.filter(comment => comment.status === status);
-                }
-                return comments;
-            } catch (error) {
-                console.error('❌ API获取评论失败:', error);
-                // 降级到localStorage
-                console.log('🔄 降级到localStorage');
+        let comments = [];
+        
+        switch (this.environment) {
+            case 'vercel':
+                comments = await this._getCommentsFromAPI();
+                break;
+            case 'github-pages':
+            case 'local':
+            default:
+                comments = await this._getCommentsFromJSON();
+                break;
+        }
+        
+        if (status && Array.isArray(comments)) {
+            return comments.filter(comment => comment.status === status);
+        }
+        return comments || [];
+    }
+    
+    // 从API获取评论 (Vercel环境)
+    async _getCommentsFromAPI() {
+        try {
+            const apiBase = this.getApiBaseURL();
+            console.log('📡 [Vercel] 从API获取评论列表');
+            
+            const response = await fetch(`${apiBase}/comments`);
+            if (!response.ok) {
+                throw new Error(`API请求失败: ${response.status}`);
             }
+            
+            const result = await response.json();
+            let comments = [];
+            if (result.success && result.data) {
+                comments = result.data;
+            } else if (Array.isArray(result)) {
+                comments = result;
+            }
+            
+            console.log('✅ [Vercel] 评论获取成功:', comments.length, '条');
+            return comments;
+        } catch (error) {
+            console.error('❌ [Vercel] API获取评论失败:', error);
+            return [];
         }
-        
-        // 降级方案：从localStorage获取
-        console.log('💾 从localStorage获取评论');
-        const data = this.getAllData();
-        if (status) {
-            return data.comments.filter(comment => comment.status === status);
+    }
+    
+    // 从JSON文件获取评论 (本地/GitHub Pages环境)
+    async _getCommentsFromJSON() {
+        try {
+            if (this._jsonDataCache && this._jsonDataCache.comments) {
+                console.log('📋 [JSON] 使用缓存的评论数据');
+                return this._jsonDataCache.comments;
+            }
+            
+            console.log('📁 [JSON] 从JSON文件获取评论');
+            const response = await fetch(`${this.jsonBaseURL}/comments.json`);
+            if (!response.ok) {
+                throw new Error(`JSON文件加载失败: ${response.status}`);
+            }
+            
+            const comments = await response.json();
+            
+            if (!this._jsonDataCache) this._jsonDataCache = {};
+            this._jsonDataCache.comments = comments;
+            
+            console.log('✅ [JSON] 评论加载成功:', comments.length, '条');
+            return comments;
+        } catch (error) {
+            console.error('❌ [JSON] 加载评论失败:', error);
+            const data = this.getAllData();
+            return data?.comments || [];
         }
-        return data.comments;
     }
 
     async addComment(comment) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const commentData = {
-                ...comment,
-                time: new Date().toISOString(),
-                status: 'pending' // 默认待审核
-            };
-            
-            const response = await fetch(`${apiBase}/comments`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(commentData)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 评论已保存到KV数据库:', result.data.id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API保存失败:', response.status, errorText);
-                throw new Error(`评论创建失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 添加评论失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持添加评论');
         }
+        
+        const commentData = {
+            ...comment,
+            time: new Date().toISOString(),
+            status: 'pending'
+        };
+        
+        const result = await this._apiRequest('comments', 'POST', null, commentData);
+        if (this._jsonDataCache) this._jsonDataCache.comments = null;
+        return result;
     }
 
     async updateComment(id, updates) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/comments?id=${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 评论已更新到KV数据库:', id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API更新失败:', response.status, errorText);
-                throw new Error(`评论更新失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 更新评论失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持更新评论');
         }
+        
+        const result = await this._apiRequest('comments', 'PUT', id, updates);
+        if (this._jsonDataCache) this._jsonDataCache.comments = null;
+        return result;
     }
 
     async deleteComment(id) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/comments?id=${id}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                console.log('✅ 评论已从KV数据库删除:', id);
-                return { success: true };
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API删除失败:', response.status, errorText);
-                throw new Error(`评论删除失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 删除评论失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持删除评论');
         }
+        
+        const result = await this._apiRequest('comments', 'DELETE', id);
+        if (this._jsonDataCache) this._jsonDataCache.comments = null;
+        return result;
     }
 
-    // 留言相关方法
+    // ========== 留言相关方法 ==========
+    
+    // 同步获取留言 (用于兼容旧代码)
     getGuestbookMessages() {
+        if (this._jsonDataCache && this._jsonDataCache.guestbook) {
+            return this._jsonDataCache.guestbook;
+        }
         const data = this.getAllData();
-        return data.guestbook || [];
+        return data?.guestbook || [];
     }
     
-    // 🔥 异步获取留言（优先从 API）
+    // 🔥 异步获取留言 - 根据环境选择数据源
     async getGuestbookMessagesAsync() {
+        console.log(`📝 getGuestbookMessagesAsync 调用，环境: ${this.environment}`);
+        
+        switch (this.environment) {
+            case 'vercel':
+                return await this._getGuestbookFromAPI();
+            case 'github-pages':
+            case 'local':
+            default:
+                return await this._getGuestbookFromJSON();
+        }
+    }
+    
+    // 从API获取留言 (Vercel环境)
+    async _getGuestbookFromAPI() {
         try {
             const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/guestbook`);
+            console.log('📡 [Vercel] 从API获取留言列表');
             
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 从API获取留言数据 - 原始响应:', result);
-                
-                // 严格的数据提取和验证
-                let messages = [];
-                
-                if (result && result.success && result.data) {
-                    // 标准API响应格式: { success: true, data: [...] }
-                    messages = result.data;
-                    console.log('📊 使用 result.data:', Array.isArray(messages) ? `${messages.length}条` : typeof messages);
-                } else if (result && Array.isArray(result)) {
-                    // 直接返回数组格式
-                    messages = result;
-                    console.log('📊 使用 result 数组:', messages.length, '条');
-                } else {
-                    console.warn('⚠️ API响应格式异常:', {
-                        hasResult: !!result,
-                        hasSuccess: result?.success,
-                        hasData: !!result?.data,
-                        dataType: typeof result?.data,
-                        isResultArray: Array.isArray(result)
-                    });
-                    messages = [];
-                }
-                
-                // 最终验证：确保返回数组
-                if (!Array.isArray(messages)) {
-                    console.error('❌ 提取的留言数据不是数组:', typeof messages, messages);
-                    messages = [];
-                }
-                
-                console.log('📊 留言数据处理完成:', messages.length, '条');
-                return messages;
-            } else {
-                console.warn('⚠️ API获取留言失败，状态码:', response.status);
-                return this.getGuestbookMessages();
+            const response = await fetch(`${apiBase}/guestbook`);
+            if (!response.ok) {
+                throw new Error(`API请求失败: ${response.status}`);
             }
+            
+            const result = await response.json();
+            let messages = [];
+            if (result.success && result.data) {
+                messages = result.data;
+            } else if (Array.isArray(result)) {
+                messages = result;
+            }
+            
+            console.log('✅ [Vercel] 留言获取成功:', messages.length, '条');
+            return messages;
         } catch (error) {
-            console.error('❌ API获取留言失败:', error);
-            return this.getGuestbookMessages();
+            console.error('❌ [Vercel] API获取留言失败:', error);
+            return [];
+        }
+    }
+    
+    // 从JSON文件获取留言 (本地/GitHub Pages环境)
+    async _getGuestbookFromJSON() {
+        try {
+            if (this._jsonDataCache && this._jsonDataCache.guestbook) {
+                console.log('📋 [JSON] 使用缓存的留言数据');
+                return this._jsonDataCache.guestbook;
+            }
+            
+            console.log('📁 [JSON] 从JSON文件获取留言');
+            const response = await fetch(`${this.jsonBaseURL}/guestbook.json`);
+            if (!response.ok) {
+                throw new Error(`JSON文件加载失败: ${response.status}`);
+            }
+            
+            const messages = await response.json();
+            
+            if (!this._jsonDataCache) this._jsonDataCache = {};
+            this._jsonDataCache.guestbook = messages;
+            
+            console.log('✅ [JSON] 留言加载成功:', messages.length, '条');
+            return messages;
+        } catch (error) {
+            console.error('❌ [JSON] 加载留言失败:', error);
+            const data = this.getAllData();
+            return data?.guestbook || [];
         }
     }
     
     async addGuestbookMessage(message) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const timestamp = new Date().toISOString();
-            const messageData = {
-                ...message,
-                time: timestamp,
-                createdAt: timestamp,
-                likes: 0,
-                pinned: false
-            };
-            
-            const response = await fetch(`${apiBase}/guestbook`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(messageData)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 留言已保存到KV数据库:', result.data.id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API保存失败:', response.status, errorText);
-                throw new Error(`留言创建失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 添加留言失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持添加留言');
         }
+        
+        const timestamp = new Date().toISOString();
+        const messageData = {
+            ...message,
+            time: timestamp,
+            createdAt: timestamp,
+            likes: 0,
+            pinned: false
+        };
+        
+        const result = await this._apiRequest('guestbook', 'POST', null, messageData);
+        if (this._jsonDataCache) this._jsonDataCache.guestbook = null;
+        return result;
     }
     
     async updateGuestbookMessage(id, updates) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/guestbook?id=${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 留言已更新到KV数据库:', id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API更新失败:', response.status, errorText);
-                throw new Error(`留言更新失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 更新留言失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持更新留言');
         }
+        
+        const result = await this._apiRequest('guestbook', 'PUT', id, updates);
+        if (this._jsonDataCache) this._jsonDataCache.guestbook = null;
+        return result;
     }
     
     async deleteGuestbookMessage(id) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/guestbook?id=${id}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                console.log('✅ 留言已从KV数据库删除:', id);
-                return { success: true };
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API删除失败:', response.status, errorText);
-                throw new Error(`留言删除失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 删除留言失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持删除留言');
         }
+        
+        const result = await this._apiRequest('guestbook', 'DELETE', id);
+        if (this._jsonDataCache) this._jsonDataCache.guestbook = null;
+        return result;
     }
     
     toggleGuestbookLike(id) {
@@ -1352,80 +1508,103 @@ class BlogDataStore {
         return null;
     }
 
-    // 设置相关方法
+    // ========== 设置相关方法 ==========
+    
+    // 🔥 异步获取设置 - 根据环境选择数据源
     async getSettings() {
-        // 强制检查Vercel环境
-        const hostname = window.location.hostname;
-        const isVercelEnv = hostname.includes('vercel.app') || 
-                           hostname.includes('vercel.com') ||
-                           hostname.includes('web3v.vip') || 
-                           hostname.includes('slxhdjy.top');
+        console.log(`⚙️ getSettings 调用，环境: ${this.environment}`);
         
-        if (this.useApi || isVercelEnv) {
-            try {
-                const apiBase = this.getApiBaseURL();
-                console.log('🔍 获取设置 - API调用:', apiBase + '/settings');
-                const response = await fetch(`${apiBase}/settings`);
-                
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        console.warn('⚠️ 设置数据不存在，返回空设置对象');
-                        return {};
-                    }
-                    throw new Error(`获取设置失败: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                console.log('✅ API获取设置成功:', Object.keys(result.data || {}).length, '个字段');
-                return result.success ? result.data : {};
-            } catch (error) {
-                console.error('❌ API获取设置失败:', error);
-                
-                // 在Vercel环境下不降级到localStorage，避免JSON数据覆盖KV数据
-                if (isVercelEnv) {
-                    console.warn('⚠️ Vercel环境下不使用localStorage数据，返回空设置');
+        switch (this.environment) {
+            case 'vercel':
+                return await this._getSettingsFromAPI();
+            case 'github-pages':
+            case 'local':
+            default:
+                return await this._getSettingsFromJSON();
+        }
+    }
+    
+    // 从API获取设置 (Vercel环境)
+    async _getSettingsFromAPI() {
+        try {
+            const apiBase = this.getApiBaseURL();
+            console.log('📡 [Vercel] 从API获取设置');
+            
+            const response = await fetch(`${apiBase}/settings`);
+            if (!response.ok) {
+                if (response.status === 404) {
+                    console.warn('⚠️ [Vercel] 设置数据不存在');
                     return {};
                 }
-                
-                // 只有在本地环境下才降级到localStorage
-                console.warn('⚠️ 本地环境降级到localStorage');
-                const data = this.getAllData();
-                return data.settings || {};
+                throw new Error(`API请求失败: ${response.status}`);
             }
+            
+            const result = await response.json();
+            const settings = result.success ? result.data : (result || {});
+            
+            console.log('✅ [Vercel] 设置获取成功:', Object.keys(settings).length, '个字段');
+            return settings;
+        } catch (error) {
+            console.error('❌ [Vercel] API获取设置失败:', error);
+            return {};
         }
-        
-        console.log('💾 从localStorage获取设置');
-        const data = this.getAllData();
-        return data.settings || {};
+    }
+    
+    // 从JSON文件获取设置 (本地/GitHub Pages环境)
+    async _getSettingsFromJSON() {
+        try {
+            if (this._jsonDataCache && this._jsonDataCache.settings) {
+                console.log('📋 [JSON] 使用缓存的设置数据');
+                return this._jsonDataCache.settings;
+            }
+            
+            console.log('📁 [JSON] 从JSON文件获取设置');
+            const response = await fetch(`${this.jsonBaseURL}/settings.json`);
+            if (!response.ok) {
+                throw new Error(`JSON文件加载失败: ${response.status}`);
+            }
+            
+            const settings = await response.json();
+            
+            if (!this._jsonDataCache) this._jsonDataCache = {};
+            this._jsonDataCache.settings = settings;
+            
+            console.log('✅ [JSON] 设置加载成功:', Object.keys(settings).length, '个字段');
+            return settings;
+        } catch (error) {
+            console.error('❌ [JSON] 加载设置失败:', error);
+            const data = this.getAllData();
+            return data?.settings || {};
+        }
     }
 
     async updateSettings(updates) {
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持更新设置');
+        }
+        
+        let apiBase;
+        if (this.environment === 'vercel') {
+            apiBase = this.getApiBaseURL();
+        } else {
+            apiBase = this.getLocalApiBaseURL();
+        }
+        
         try {
-            const apiBase = this.getApiBaseURL();
-            
-            // 先获取现有设置，确保不会覆盖其他字段
+            // 先获取现有设置
             let currentSettings = {};
             try {
                 const getResponse = await fetch(`${apiBase}/settings`);
                 if (getResponse.ok) {
                     const result = await getResponse.json();
-                    currentSettings = result.data || {};
+                    currentSettings = result.data || result || {};
                 }
             } catch (error) {
-                console.warn('⚠️ 无法获取当前设置，将直接更新:', error.message);
+                console.warn('⚠️ 无法获取当前设置:', error.message);
             }
             
-            // 合并设置，保留现有字段
-            const mergedSettings = {
-                ...currentSettings,
-                ...updates
-            };
-            
-            console.log('🔄 更新设置:', {
-                current: Object.keys(currentSettings).length + ' 个字段',
-                updates: Object.keys(updates).length + ' 个字段',
-                merged: Object.keys(mergedSettings).length + ' 个字段'
-            });
+            // 合并设置
+            const mergedSettings = { ...currentSettings, ...updates };
             
             const response = await fetch(`${apiBase}/settings`, {
                 method: 'PUT',
@@ -1435,11 +1614,11 @@ class BlogDataStore {
             
             if (response.ok) {
                 const result = await response.json();
-                console.log('✅ 设置已更新到KV数据库');
-                return result.data;
+                console.log(`✅ [${this.environment === 'vercel' ? 'Vercel' : '本地'}] 设置已更新`);
+                if (this._jsonDataCache) this._jsonDataCache.settings = null;
+                return result.data || result;
             } else {
                 const errorText = await response.text();
-                console.error('❌ API更新失败:', response.status, errorText);
                 throw new Error(`设置更新失败: ${response.status} - ${errorText}`);
             }
         } catch (error) {
@@ -1476,12 +1655,12 @@ class BlogDataStore {
         }
         
         // 计算总字数（所有已发布文章的字数总和）
-        const totalWords = data.articles
+        const calculatedTotalWords = data.articles
             .filter(a => a.status === 'published')
             .reduce((sum, article) => sum + (article.content?.length || 0), 0);
         
         // 计算总浏览量（所有文章的浏览量总和）
-        const totalViews = data.articles.reduce((sum, article) => sum + (article.views || 0), 0);
+        const calculatedTotalViews = data.articles.reduce((sum, article) => sum + (article.views || 0), 0);
         
         // 计算运行天数
         const runningDays = Math.floor((Date.now() - new Date(data.settings?.startDate || Date.now()).getTime()) / (1000 * 60 * 60 * 24));
@@ -1489,24 +1668,21 @@ class BlogDataStore {
         return {
             totalArticles: data.articles.filter(a => a.status === 'published').length,
             totalComments: data.comments?.length || 0,
-            totalViews: totalViews,
+            // 🔥 优先使用 settings 中的值
+            totalViews: data.settings?.totalViews || calculatedTotalViews,
             totalVisitors: data.settings?.totalVisitors || 0,
-            totalWords: totalWords,
+            totalWords: data.settings?.totalWords || calculatedTotalWords,
             runningDays: runningDays
         };
     }
     
-    // 🔥 异步获取统计数据（优先从API获取）
+    // 🔥 异步获取统计数据 - 根据环境选择数据源
     async getStatsAsync() {
-        const hostname = window.location.hostname;
-        const isVercelEnv = hostname.includes('vercel.app') || 
-                           hostname.includes('vercel.com') ||
-                           hostname.includes('web3v.vip') || 
-                           hostname.includes('slxhdjy.top');
+        console.log(`📊 getStatsAsync 调用，环境: ${this.environment}`);
         
-        if (isVercelEnv || this.useApi) {
+        if (this.environment === 'vercel') {
+            // Vercel环境 - 从API获取
             try {
-                // 并行获取文章、评论和设置
                 const apiBase = this.getApiBaseURL();
                 const [articlesRes, commentsRes, settingsRes] = await Promise.all([
                     fetch(`${apiBase}/articles`),
@@ -1533,13 +1709,12 @@ class BlogDataStore {
                     settings = result.success && result.data ? result.data : (result || {});
                 }
                 
-                // 计算统计数据
                 const publishedArticles = articles.filter(a => a.status === 'published');
                 const totalWords = publishedArticles.reduce((sum, article) => sum + (article.content?.length || 0), 0);
                 const totalViews = articles.reduce((sum, article) => sum + (article.views || 0), 0);
                 const runningDays = Math.floor((Date.now() - new Date(settings.startDate || Date.now()).getTime()) / (1000 * 60 * 60 * 24));
                 
-                console.log('📊 API统计数据获取完成:', {
+                console.log('📊 [Vercel] 统计数据获取完成:', {
                     totalArticles: publishedArticles.length,
                     totalComments: comments.length,
                     totalViews: totalViews
@@ -1554,12 +1729,54 @@ class BlogDataStore {
                     runningDays: runningDays
                 };
             } catch (error) {
-                console.error('❌ API获取统计失败:', error);
+                console.error('❌ [Vercel] API获取统计失败:', error);
+                return this.getStats();
+            }
+        } else {
+            // 本地/GitHub Pages环境 - 从JSON文件获取
+            try {
+                console.log('📊 [本地] 开始从JSON文件获取统计数据...');
+                console.log('📊 [本地] jsonBaseURL:', this.jsonBaseURL);
+                
+                const [articles, comments, settings] = await Promise.all([
+                    this._getArticlesFromJSON(),
+                    this._getCommentsFromJSON(),
+                    this._getSettingsFromJSON()
+                ]);
+                
+                console.log('📊 [本地] 原始数据:', {
+                    articles: articles?.length || 0,
+                    comments: comments?.length || 0,
+                    settings: settings ? Object.keys(settings).length : 0,
+                    settingsData: settings
+                });
+                
+                const publishedArticles = (articles || []).filter(a => a.status === 'published');
+                
+                // 🔥 优先使用 settings 中的统计数据，如果没有则计算
+                const calculatedTotalWords = publishedArticles.reduce((sum, article) => sum + (article.content?.length || 0), 0);
+                const calculatedTotalViews = (articles || []).reduce((sum, article) => sum + (article.views || 0), 0);
+                const runningDays = Math.floor((Date.now() - new Date(settings?.startDate || Date.now()).getTime()) / (1000 * 60 * 60 * 24));
+                
+                const stats = {
+                    totalArticles: publishedArticles.length,
+                    totalComments: (comments || []).length,
+                    // 🔥 优先使用 settings 中的值
+                    totalViews: settings?.totalViews || calculatedTotalViews,
+                    totalVisitors: settings?.totalVisitors || 0,
+                    totalWords: settings?.totalWords || calculatedTotalWords,
+                    runningDays: runningDays
+                };
+                
+                console.log('📊 [本地] 统计数据获取完成:', stats);
+                
+                return stats;
+            } catch (error) {
+                console.error('❌ [本地] JSON获取统计失败:', error);
+                console.error('❌ [本地] 错误详情:', error.message, error.stack);
+                return this.getStats();
             }
         }
-        
-        // 降级到同步方法
-        return this.getStats();
     }
 
     // 增加浏览量
@@ -1575,328 +1792,325 @@ class BlogDataStore {
         this.saveAllData(data);
     }
 
-    // 图片管理方法
+    // ========== 图片管理方法 ==========
+    
+    // 🔥 异步获取图片 - 根据环境选择数据源
     async getImages() {
-        // 🔥 在Vercel环境下优先从API获取
-        const hostname = window.location.hostname;
-        const isVercelEnv = hostname.includes('vercel.app') || 
-                           hostname.includes('vercel.com') ||
-                           hostname.includes('web3v.vip') || 
-                           hostname.includes('slxhdjy.top');
+        console.log(`🖼️ getImages 调用，环境: ${this.environment}`);
         
-        if (isVercelEnv || this.useApi) {
-            try {
-                const apiBase = this.getApiBaseURL();
-                console.log('📡 从API获取图片列表，URL:', `${apiBase}/images`);
-                
-                const response = await fetch(`${apiBase}/images`);
-                if (!response.ok) {
-                    throw new Error(`API请求失败: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                console.log('✅ API返回图片列表:', result);
-                
-                let images = [];
-                if (result.success && result.data) {
-                    images = result.data;
-                } else if (Array.isArray(result)) {
-                    images = result;
-                }
-                
-                // 同时更新localStorage作为缓存
-                localStorage.setItem('blog_media', JSON.stringify(images));
-                return images;
-            } catch (error) {
-                console.error('❌ API获取图片失败:', error);
-            }
+        switch (this.environment) {
+            case 'vercel':
+                return await this._getImagesFromAPI();
+            case 'github-pages':
+            case 'local':
+            default:
+                return await this._getImagesFromJSON();
         }
-        
-        // 优先从 data-adapter 读取（JSON文件）
-        if (window.dataAdapter) {
-            try {
-                const images = await window.dataAdapter.getImages();
-                // 同时更新localStorage作为缓存
-                localStorage.setItem('blog_media', JSON.stringify(images));
-                return images;
-            } catch (error) {
-                console.warn('⚠️ 从JSON读取失败，使用localStorage:', error.message);
-            }
-        }
-        
-        // 回退到localStorage
+    }
+    
+    // 从API获取图片 (Vercel环境)
+    async _getImagesFromAPI() {
         try {
-            const mediaData = JSON.parse(localStorage.getItem('blog_media') || '[]');
-            return mediaData.filter(item => item.type === 'image' || item.type?.startsWith('image/'));
+            const apiBase = this.getApiBaseURL();
+            console.log('📡 [Vercel] 从API获取图片列表');
+            
+            const response = await fetch(`${apiBase}/images`);
+            if (!response.ok) {
+                throw new Error(`API请求失败: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            let images = [];
+            if (result.success && result.data) {
+                images = result.data;
+            } else if (Array.isArray(result)) {
+                images = result;
+            }
+            
+            console.log('✅ [Vercel] 图片获取成功:', images.length, '张');
+            return images;
         } catch (error) {
-            console.error('读取图片数据失败:', error);
+            console.error('❌ [Vercel] API获取图片失败:', error);
+            return [];
+        }
+    }
+    
+    // 从JSON文件获取图片 (本地/GitHub Pages环境)
+    async _getImagesFromJSON() {
+        try {
+            if (this._jsonDataCache && this._jsonDataCache.images) {
+                console.log('📋 [JSON] 使用缓存的图片数据');
+                return this._jsonDataCache.images;
+            }
+            
+            console.log('📁 [JSON] 从JSON文件获取图片');
+            const response = await fetch(`${this.jsonBaseURL}/images.json`);
+            if (!response.ok) {
+                throw new Error(`JSON文件加载失败: ${response.status}`);
+            }
+            
+            const images = await response.json();
+            
+            if (!this._jsonDataCache) this._jsonDataCache = {};
+            this._jsonDataCache.images = images;
+            
+            console.log('✅ [JSON] 图片加载成功:', images.length, '张');
+            return images;
+        } catch (error) {
+            console.error('❌ [JSON] 加载图片失败:', error);
             return [];
         }
     }
 
     async getImageById(id) {
         const images = await this.getImages();
-        return images.find(img => img.id === parseInt(id));
+        return images.find(img => img.id === parseInt(id) || String(img.id) === String(id));
     }
 
     async addImage(image) {
-        try {
-            // 准备图片数据
-            image.uploadDate = new Date().toISOString().split('T')[0];
-            image.usedIn = image.usedIn || [];
-            image.type = image.type || 'image';
-            
-            // 尝试通过API保存到JSON文件
-            try {
-                const apiBase = this.getApiBaseURL();
-                const response = await fetch(`${apiBase}/images`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(image)
-                });
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    console.log('✅ 图片记录已保存到 images.json:', result.data.id);
-                    
-                    // 同时保存到localStorage作为备份
-                    const mediaData = JSON.parse(localStorage.getItem('blog_media') || '[]');
-                    mediaData.unshift(result.data);
-                    localStorage.setItem('blog_media', JSON.stringify(mediaData));
-                    
-                    return result.data;
-                } else {
-                    throw new Error('API保存失败');
-                }
-            } catch (apiError) {
-                console.warn('⚠️ API保存失败，使用localStorage:', apiError.message);
-                
-                // 回退到localStorage
-                const mediaData = JSON.parse(localStorage.getItem('blog_media') || '[]');
-                image.id = Math.max(...mediaData.map(m => m.id || 0), 0) + 1;
-                mediaData.unshift(image);
-                localStorage.setItem('blog_media', JSON.stringify(mediaData));
-                return image;
-            }
-        } catch (error) {
-            console.error('❌ 添加图片失败:', error);
-            return null;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持添加图片');
         }
+        
+        image.uploadDate = new Date().toISOString().split('T')[0];
+        image.usedIn = image.usedIn || [];
+        image.type = image.type || 'image';
+        
+        const result = await this._apiRequest('images', 'POST', null, image);
+        if (this._jsonDataCache) this._jsonDataCache.images = null;
+        return result;
     }
 
     async updateImage(id, updates) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/images?id=${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 图片已更新到KV数据库:', id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API更新失败:', response.status, errorText);
-                throw new Error(`图片更新失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 更新图片失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持更新图片');
         }
+        
+        const result = await this._apiRequest('images', 'PUT', id, updates);
+        if (this._jsonDataCache) this._jsonDataCache.images = null;
+        return result;
     }
 
     async deleteImage(id) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/images?id=${id}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                console.log('✅ 图片已从KV数据库删除:', id);
-                return { success: true };
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API删除失败:', response.status, errorText);
-                throw new Error(`图片删除失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 删除图片失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持删除图片');
         }
+        
+        const result = await this._apiRequest('images', 'DELETE', id);
+        if (this._jsonDataCache) this._jsonDataCache.images = null;
+        return result;
     }
 
-    // 音乐管理方法
+    // ========== 音乐管理方法 ==========
+    
+    // 同步获取音乐 (用于兼容旧代码)
     getMusic() {
+        if (this._jsonDataCache && this._jsonDataCache.music) {
+            return this._jsonDataCache.music;
+        }
         const data = this.getAllData();
-        return data.music || [];
+        return data?.music || [];
+    }
+    
+    // 🔥 异步获取音乐 - 根据环境选择数据源
+    async getMusicAsync() {
+        console.log(`🎵 getMusicAsync 调用，环境: ${this.environment}`);
+        
+        switch (this.environment) {
+            case 'vercel':
+                return await this._getMusicFromAPI();
+            case 'github-pages':
+            case 'local':
+            default:
+                return await this._getMusicFromJSON();
+        }
+    }
+    
+    // 从API获取音乐 (Vercel环境)
+    async _getMusicFromAPI() {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/music`);
+            if (!response.ok) throw new Error(`API请求失败: ${response.status}`);
+            
+            const result = await response.json();
+            let music = result.success && result.data ? result.data : (Array.isArray(result) ? result : []);
+            console.log('✅ [Vercel] 音乐获取成功:', music.length, '首');
+            return music;
+        } catch (error) {
+            console.error('❌ [Vercel] API获取音乐失败:', error);
+            return [];
+        }
+    }
+    
+    // 从JSON文件获取音乐 (本地/GitHub Pages环境)
+    async _getMusicFromJSON() {
+        try {
+            if (this._jsonDataCache && this._jsonDataCache.music) {
+                return this._jsonDataCache.music;
+            }
+            
+            const response = await fetch(`${this.jsonBaseURL}/music.json`);
+            if (!response.ok) throw new Error(`JSON文件加载失败: ${response.status}`);
+            
+            const music = await response.json();
+            if (!this._jsonDataCache) this._jsonDataCache = {};
+            this._jsonDataCache.music = music;
+            
+            console.log('✅ [JSON] 音乐加载成功:', music.length, '首');
+            return music;
+        } catch (error) {
+            console.error('❌ [JSON] 加载音乐失败:', error);
+            return [];
+        }
     }
 
     getMusicById(id) {
-        const data = this.getAllData();
-        return data.music?.find(m => m.id === parseInt(id));
+        const music = this.getMusic();
+        return music.find(m => m.id === parseInt(id) || String(m.id) === String(id));
+    }
+    
+    // 🔥 异步获取单个音乐
+    async getMusicByIdAsync(id) {
+        const music = await this.getMusicAsync();
+        return music.find(m => m.id === parseInt(id) || String(m.id) === String(id));
     }
 
     async addMusic(music) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const musicData = {
-                ...music,
-                uploadDate: new Date().toISOString().split('T')[0]
-            };
-            
-            const response = await fetch(`${apiBase}/music`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(musicData)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 音乐已保存到KV数据库:', result.data.id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API保存失败:', response.status, errorText);
-                throw new Error(`音乐创建失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 添加音乐失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持添加音乐');
         }
+        
+        const musicData = { ...music, uploadDate: new Date().toISOString().split('T')[0] };
+        const result = await this._apiRequest('music', 'POST', null, musicData);
+        if (this._jsonDataCache) this._jsonDataCache.music = null;
+        return result;
     }
 
     async updateMusic(id, updates) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/music?id=${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 音乐已更新到KV数据库:', id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API更新失败:', response.status, errorText);
-                throw new Error(`音乐更新失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 更新音乐失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持更新音乐');
         }
+        
+        const result = await this._apiRequest('music', 'PUT', id, updates);
+        if (this._jsonDataCache) this._jsonDataCache.music = null;
+        return result;
     }
 
     async deleteMusic(id) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/music?id=${id}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                console.log('✅ 音乐已从KV数据库删除:', id);
-                return { success: true };
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API删除失败:', response.status, errorText);
-                throw new Error(`音乐删除失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 删除音乐失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持删除音乐');
         }
+        
+        const result = await this._apiRequest('music', 'DELETE', id);
+        if (this._jsonDataCache) this._jsonDataCache.music = null;
+        return result;
     }
 
-    // 视频管理方法
+    // ========== 视频管理方法 ==========
+    
+    // 同步获取视频 (用于兼容旧代码)
     getVideos() {
+        if (this._jsonDataCache && this._jsonDataCache.videos) {
+            return this._jsonDataCache.videos;
+        }
         const data = this.getAllData();
-        return data.videos || [];
+        return data?.videos || [];
+    }
+    
+    // 🔥 异步获取视频 - 根据环境选择数据源
+    async getVideosAsync() {
+        console.log(`🎬 getVideosAsync 调用，环境: ${this.environment}`);
+        
+        switch (this.environment) {
+            case 'vercel':
+                return await this._getVideosFromAPI();
+            case 'github-pages':
+            case 'local':
+            default:
+                return await this._getVideosFromJSON();
+        }
+    }
+    
+    // 从API获取视频 (Vercel环境)
+    async _getVideosFromAPI() {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/videos`);
+            if (!response.ok) throw new Error(`API请求失败: ${response.status}`);
+            
+            const result = await response.json();
+            let videos = result.success && result.data ? result.data : (Array.isArray(result) ? result : []);
+            console.log('✅ [Vercel] 视频获取成功:', videos.length, '个');
+            return videos;
+        } catch (error) {
+            console.error('❌ [Vercel] API获取视频失败:', error);
+            return [];
+        }
+    }
+    
+    // 从JSON文件获取视频 (本地/GitHub Pages环境)
+    async _getVideosFromJSON() {
+        try {
+            if (this._jsonDataCache && this._jsonDataCache.videos) {
+                return this._jsonDataCache.videos;
+            }
+            
+            const response = await fetch(`${this.jsonBaseURL}/videos.json`);
+            if (!response.ok) throw new Error(`JSON文件加载失败: ${response.status}`);
+            
+            const videos = await response.json();
+            if (!this._jsonDataCache) this._jsonDataCache = {};
+            this._jsonDataCache.videos = videos;
+            
+            console.log('✅ [JSON] 视频加载成功:', videos.length, '个');
+            return videos;
+        } catch (error) {
+            console.error('❌ [JSON] 加载视频失败:', error);
+            return [];
+        }
     }
 
     getVideoById(id) {
-        const data = this.getAllData();
-        return data.videos?.find(v => v.id === parseInt(id));
+        const videos = this.getVideos();
+        return videos.find(v => v.id === parseInt(id) || String(v.id) === String(id));
+    }
+    
+    // 🔥 异步获取单个视频
+    async getVideoByIdAsync(id) {
+        const videos = await this.getVideosAsync();
+        return videos.find(v => v.id === parseInt(id) || String(v.id) === String(id));
     }
 
     async addVideo(video) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const videoData = {
-                ...video,
-                uploadDate: new Date().toISOString().split('T')[0]
-            };
-            
-            const response = await fetch(`${apiBase}/videos`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(videoData)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 视频已保存到KV数据库:', result.data.id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API保存失败:', response.status, errorText);
-                throw new Error(`视频创建失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 添加视频失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持添加视频');
         }
+        
+        const videoData = { ...video, uploadDate: new Date().toISOString().split('T')[0] };
+        const result = await this._apiRequest('videos', 'POST', null, videoData);
+        if (this._jsonDataCache) this._jsonDataCache.videos = null;
+        return result;
     }
 
     async updateVideo(id, updates) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/videos?id=${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 视频已更新到KV数据库:', id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API更新失败:', response.status, errorText);
-                throw new Error(`视频更新失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 更新视频失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持更新视频');
         }
+        
+        const result = await this._apiRequest('videos', 'PUT', id, updates);
+        if (this._jsonDataCache) this._jsonDataCache.videos = null;
+        return result;
     }
 
     async deleteVideo(id) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/videos?id=${id}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                console.log('✅ 视频已从KV数据库删除:', id);
-                return { success: true };
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API删除失败:', response.status, errorText);
-                throw new Error(`视频删除失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 删除视频失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持删除视频');
         }
+        
+        const result = await this._apiRequest('videos', 'DELETE', id);
+        if (this._jsonDataCache) this._jsonDataCache.videos = null;
+        return result;
     }
 
     // 兼容旧的 getMedia 方法
@@ -2025,150 +2239,121 @@ class BlogDataStore {
 
     // ========== 友情链接管理方法 ==========
     
-    // 获取所有友情链接
+    // 同步获取友情链接 (用于兼容旧代码)
     getLinks() {
-        // 🔥 在Vercel环境下，同步方法返回空数组，应使用异步方法
-        const hostname = window.location.hostname;
-        const isVercelEnv = hostname.includes('vercel.app') || 
-                           hostname.includes('vercel.com') ||
-                           hostname.includes('web3v.vip') || 
-                           hostname.includes('slxhdjy.top');
-        
-        if (isVercelEnv) {
-            console.warn('⚠️ Vercel环境下请使用 getLinksAsync() 异步方法');
-            const data = this.getAllData();
-            return data?.links || [];
+        if (this._jsonDataCache && this._jsonDataCache.links) {
+            return this._jsonDataCache.links;
         }
-        
-        const data = this.getAllData();
-        return data.links || [];
-    }
-    
-    // 🔥 异步获取友情链接（优先从API获取）
-    async getLinksAsync() {
-        const hostname = window.location.hostname;
-        const isVercelEnv = hostname.includes('vercel.app') || 
-                           hostname.includes('vercel.com') ||
-                           hostname.includes('web3v.vip') || 
-                           hostname.includes('slxhdjy.top');
-        
-        if (isVercelEnv || this.useApi) {
-            try {
-                const apiBase = this.getApiBaseURL();
-                console.log('📡 从API获取友情链接列表，URL:', `${apiBase}/links`);
-                
-                const response = await fetch(`${apiBase}/links`);
-                if (!response.ok) {
-                    throw new Error(`API请求失败: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                console.log('✅ API返回友情链接列表:', result);
-                
-                let links = [];
-                if (result.success && result.data) {
-                    links = result.data;
-                } else if (Array.isArray(result)) {
-                    links = result;
-                }
-                
-                return links;
-            } catch (error) {
-                console.error('❌ API获取友情链接失败:', error);
-            }
-        }
-        
-        // 降级到localStorage
         const data = this.getAllData();
         return data?.links || [];
+    }
+    
+    // 🔥 异步获取友情链接 - 根据环境选择数据源
+    async getLinksAsync() {
+        console.log(`🔗 getLinksAsync 调用，环境: ${this.environment}`);
+        
+        switch (this.environment) {
+            case 'vercel':
+                return await this._getLinksFromAPI();
+            case 'github-pages':
+            case 'local':
+            default:
+                return await this._getLinksFromJSON();
+        }
+    }
+    
+    // 从API获取友情链接 (Vercel环境)
+    async _getLinksFromAPI() {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/links`);
+            if (!response.ok) throw new Error(`API请求失败: ${response.status}`);
+            
+            const result = await response.json();
+            let links = result.success && result.data ? result.data : (Array.isArray(result) ? result : []);
+            console.log('✅ [Vercel] 友情链接获取成功:', links.length, '个');
+            return links;
+        } catch (error) {
+            console.error('❌ [Vercel] API获取友情链接失败:', error);
+            return [];
+        }
+    }
+    
+    // 从JSON文件获取友情链接 (本地/GitHub Pages环境)
+    async _getLinksFromJSON() {
+        try {
+            if (this._jsonDataCache && this._jsonDataCache.links) {
+                return this._jsonDataCache.links;
+            }
+            
+            const response = await fetch(`${this.jsonBaseURL}/links.json`);
+            if (!response.ok) throw new Error(`JSON文件加载失败: ${response.status}`);
+            
+            const links = await response.json();
+            if (!this._jsonDataCache) this._jsonDataCache = {};
+            this._jsonDataCache.links = links;
+            
+            console.log('✅ [JSON] 友情链接加载成功:', links.length, '个');
+            return links;
+        } catch (error) {
+            console.error('❌ [JSON] 加载友情链接失败:', error);
+            return [];
+        }
     }
 
     // 根据ID获取友情链接
     getLinkById(id) {
         const links = this.getLinks();
-        return links.find(link => link.id === id);
+        return links.find(link => link.id === id || String(link.id) === String(id));
+    }
+    
+    // 🔥 异步获取单个友情链接
+    async getLinkByIdAsync(id) {
+        const links = await this.getLinksAsync();
+        return links.find(link => link.id === id || String(link.id) === String(id));
     }
 
     // 添加友情链接
     async addLink(link) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const linkData = {
-                name: link.name || '未命名',
-                url: link.url || '',
-                description: link.description || '',
-                avatar: link.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(link.name || 'Link') + '&size=200&background=4fc3f7&color=fff&bold=true',
-                category: link.category || '默认',
-                status: link.status || 'active',
-                addedDate: new Date().toISOString().split('T')[0]
-            };
-            
-            const response = await fetch(`${apiBase}/links`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(linkData)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 友情链接已保存到KV数据库:', result.data.id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API保存失败:', response.status, errorText);
-                throw new Error(`友情链接创建失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 添加友情链接失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持添加友情链接');
         }
+        
+        const linkData = {
+            name: link.name || '未命名',
+            url: link.url || '',
+            description: link.description || '',
+            avatar: link.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(link.name || 'Link') + '&size=200&background=4fc3f7&color=fff&bold=true',
+            category: link.category || '默认',
+            status: link.status || 'active',
+            addedDate: new Date().toISOString().split('T')[0]
+        };
+        
+        const result = await this._apiRequest('links', 'POST', null, linkData);
+        if (this._jsonDataCache) this._jsonDataCache.links = null;
+        return result;
     }
 
     // 更新友情链接
     async updateLink(id, updates) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/links?id=${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 友情链接已更新到KV数据库:', id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API更新失败:', response.status, errorText);
-                throw new Error(`友情链接更新失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 更新友情链接失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持更新友情链接');
         }
+        
+        const result = await this._apiRequest('links', 'PUT', id, updates);
+        if (this._jsonDataCache) this._jsonDataCache.links = null;
+        return result;
     }
 
     // 删除友情链接
     async deleteLink(id) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/links?id=${id}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                console.log('✅ 友情链接已从KV数据库删除:', id);
-                return { success: true };
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API删除失败:', response.status, errorText);
-                throw new Error(`友情链接删除失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 删除友情链接失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持删除友情链接');
         }
+        
+        const result = await this._apiRequest('links', 'DELETE', id);
+        if (this._jsonDataCache) this._jsonDataCache.links = null;
+        return result;
     }
 
     // 获取友情链接分类
@@ -2192,62 +2377,66 @@ class BlogDataStore {
 
     // ========== 用户管理方法 ==========
     
-    // 获取所有用户
+    // 同步获取用户 (用于兼容旧代码)
     getUsers() {
-        // 🔥 在Vercel环境下，同步方法返回空数组，应使用异步方法
-        const hostname = window.location.hostname;
-        const isVercelEnv = hostname.includes('vercel.app') || 
-                           hostname.includes('vercel.com') ||
-                           hostname.includes('web3v.vip') || 
-                           hostname.includes('slxhdjy.top');
-        
-        if (isVercelEnv) {
-            console.warn('⚠️ Vercel环境下请使用 getUsersAsync() 异步方法');
-            const data = this.getAllData();
-            return data?.users || [];
+        if (this._jsonDataCache && this._jsonDataCache.users) {
+            return this._jsonDataCache.users;
         }
-        
-        const data = this.getAllData();
-        return data.users || [];
-    }
-    
-    // 🔥 异步获取用户列表（优先从API获取）
-    async getUsersAsync() {
-        const hostname = window.location.hostname;
-        const isVercelEnv = hostname.includes('vercel.app') || 
-                           hostname.includes('vercel.com') ||
-                           hostname.includes('web3v.vip') || 
-                           hostname.includes('slxhdjy.top');
-        
-        if (isVercelEnv || this.useApi) {
-            try {
-                const apiBase = this.getApiBaseURL();
-                console.log('📡 从API获取用户列表，URL:', `${apiBase}/users`);
-                
-                const response = await fetch(`${apiBase}/users`);
-                if (!response.ok) {
-                    throw new Error(`API请求失败: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                console.log('✅ API返回用户列表:', result);
-                
-                let users = [];
-                if (result.success && result.data) {
-                    users = result.data;
-                } else if (Array.isArray(result)) {
-                    users = result;
-                }
-                
-                return users;
-            } catch (error) {
-                console.error('❌ API获取用户失败:', error);
-            }
-        }
-        
-        // 降级到localStorage
         const data = this.getAllData();
         return data?.users || [];
+    }
+    
+    // 🔥 异步获取用户列表 - 根据环境选择数据源
+    async getUsersAsync() {
+        console.log(`👥 getUsersAsync 调用，环境: ${this.environment}`);
+        
+        switch (this.environment) {
+            case 'vercel':
+                return await this._getUsersFromAPI();
+            case 'github-pages':
+            case 'local':
+            default:
+                return await this._getUsersFromJSON();
+        }
+    }
+    
+    // 从API获取用户 (Vercel环境)
+    async _getUsersFromAPI() {
+        try {
+            const apiBase = this.getApiBaseURL();
+            const response = await fetch(`${apiBase}/users`);
+            if (!response.ok) throw new Error(`API请求失败: ${response.status}`);
+            
+            const result = await response.json();
+            let users = result.success && result.data ? result.data : (Array.isArray(result) ? result : []);
+            console.log('✅ [Vercel] 用户获取成功:', users.length, '个');
+            return users;
+        } catch (error) {
+            console.error('❌ [Vercel] API获取用户失败:', error);
+            return [];
+        }
+    }
+    
+    // 从JSON文件获取用户 (本地/GitHub Pages环境)
+    async _getUsersFromJSON() {
+        try {
+            if (this._jsonDataCache && this._jsonDataCache.users) {
+                return this._jsonDataCache.users;
+            }
+            
+            const response = await fetch(`${this.jsonBaseURL}/users.json`);
+            if (!response.ok) throw new Error(`JSON文件加载失败: ${response.status}`);
+            
+            const users = await response.json();
+            if (!this._jsonDataCache) this._jsonDataCache = {};
+            this._jsonDataCache.users = users;
+            
+            console.log('✅ [JSON] 用户加载成功:', users.length, '个');
+            return users;
+        } catch (error) {
+            console.error('❌ [JSON] 加载用户失败:', error);
+            return [];
+        }
     }
 
     // 根据ID获取用户
@@ -2264,176 +2453,134 @@ class BlogDataStore {
 
     // 添加用户
     async addUser(userData) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/users`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(userData)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 用户已保存到KV数据库:', result.data.id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API保存失败:', response.status, errorText);
-                throw new Error(`用户创建失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 添加用户失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持添加用户');
         }
+        
+        const result = await this._apiRequest('users', 'POST', null, userData);
+        if (this._jsonDataCache) this._jsonDataCache.users = null;
+        return result;
     }
 
     // 更新用户
     async updateUser(id, updates) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/users?id=${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 用户已更新到KV数据库:', id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API更新失败:', response.status, errorText);
-                throw new Error(`用户更新失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 更新用户失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持更新用户');
         }
+        
+        const result = await this._apiRequest('users', 'PUT', id, updates);
+        if (this._jsonDataCache) this._jsonDataCache.users = null;
+        return result;
     }
 
     // 删除用户
     async deleteUser(id) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/users?id=${id}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                console.log('✅ 用户已从KV数据库删除:', id);
-                return { success: true };
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API删除失败:', response.status, errorText);
-                throw new Error(`用户删除失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 删除用户失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持删除用户');
         }
+        
+        const result = await this._apiRequest('users', 'DELETE', id);
+        if (this._jsonDataCache) this._jsonDataCache.users = null;
+        return result;
     }
 
     // 应用相关方法
     getApps() {
+        if (this._jsonDataCache && this._jsonDataCache.apps) {
+            return this._jsonDataCache.apps;
+        }
         const data = this.getAllData();
-        return data.apps || [];
+        return data?.apps || [];
     }
     
-    // 🔥 异步获取应用（优先从 API）
+    // 🔥 异步获取应用 - 根据环境选择数据源
     async getAppsAsync() {
+        console.log(`📱 getAppsAsync 调用，环境: ${this.environment}`);
+        
+        switch (this.environment) {
+            case 'vercel':
+                return await this._getAppsFromAPI();
+            case 'github-pages':
+            case 'local':
+            default:
+                return await this._getAppsFromJSON();
+        }
+    }
+    
+    // 从API获取应用 (Vercel环境)
+    async _getAppsFromAPI() {
         try {
             const apiBase = this.getApiBaseURL();
             const response = await fetch(`${apiBase}/apps`);
+            if (!response.ok) throw new Error(`API请求失败: ${response.status}`);
             
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 从API获取应用数据:', result.data?.length || 0, '个');
-                return result.data || [];
-            } else {
-                console.warn('⚠️ API获取应用失败，使用缓存数据');
-                return this.getApps();
-            }
+            const result = await response.json();
+            let apps = result.success && result.data ? result.data : (Array.isArray(result) ? result : []);
+            console.log('✅ [Vercel] 应用获取成功:', apps.length, '个');
+            return apps;
         } catch (error) {
-            console.warn('⚠️ API获取应用失败，使用缓存数据:', error.message);
-            return this.getApps();
+            console.error('❌ [Vercel] API获取应用失败:', error);
+            return [];
+        }
+    }
+    
+    // 从JSON文件获取应用 (本地/GitHub Pages环境)
+    async _getAppsFromJSON() {
+        try {
+            if (this._jsonDataCache && this._jsonDataCache.apps) {
+                return this._jsonDataCache.apps;
+            }
+            
+            const response = await fetch(`${this.jsonBaseURL}/apps.json`);
+            if (!response.ok) throw new Error(`JSON文件加载失败: ${response.status}`);
+            
+            const apps = await response.json();
+            if (!this._jsonDataCache) this._jsonDataCache = {};
+            this._jsonDataCache.apps = apps;
+            
+            console.log('✅ [JSON] 应用加载成功:', apps.length, '个');
+            return apps;
+        } catch (error) {
+            console.error('❌ [JSON] 加载应用失败:', error);
+            return [];
         }
     }
 
     async addApp(app) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const appData = {
-                ...app,
-                createdAt: new Date().toISOString(),
-                status: app.status || 'enabled',
-                order: app.order || 0
-            };
-            
-            const response = await fetch(`${apiBase}/apps`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(appData)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 应用已保存到KV数据库:', result.data.id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API保存失败:', response.status, errorText);
-                throw new Error(`应用创建失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 添加应用失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持添加应用');
         }
+        
+        const appData = {
+            ...app,
+            createdAt: new Date().toISOString(),
+            status: app.status || 'enabled',
+            order: app.order || 0
+        };
+        
+        const result = await this._apiRequest('apps', 'POST', null, appData);
+        if (this._jsonDataCache) this._jsonDataCache.apps = null;
+        return result;
     }
 
     async updateApp(id, updates) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/apps?id=${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ 应用已更新到KV数据库:', id);
-                return result.data;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API更新失败:', response.status, errorText);
-                throw new Error(`应用更新失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 更新应用失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持更新应用');
         }
+        
+        const result = await this._apiRequest('apps', 'PUT', id, updates);
+        if (this._jsonDataCache) this._jsonDataCache.apps = null;
+        return result;
     }
 
     async deleteApp(id) {
-        try {
-            const apiBase = this.getApiBaseURL();
-            const response = await fetch(`${apiBase}/apps?id=${id}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                console.log('✅ 应用已从KV数据库删除:', id);
-                return { success: true };
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API删除失败:', response.status, errorText);
-                throw new Error(`应用删除失败: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('❌ 删除应用失败:', error);
-            throw error;
+        if (this.environment === 'github-pages') {
+            throw new Error('GitHub Pages环境不支持删除应用');
         }
+        
+        const result = await this._apiRequest('apps', 'DELETE', id);
+        if (this._jsonDataCache) this._jsonDataCache.apps = null;
+        return result;
     }
 }
 

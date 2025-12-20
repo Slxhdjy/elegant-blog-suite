@@ -115,6 +115,116 @@ export default async function handler(req, res) {
       case 'POST':
         console.log('POST请求详情:', { url: req.url, resource, body: requestBody });
         
+        // 🔥 处理统计增量操作
+        if (resource === 'settings' && id === 'increment-views') {
+          console.log('📊 增加访问量');
+          const settings = await kv.get('settings') || {};
+          settings.totalViews = (settings.totalViews || 0) + 1;
+          await kv.set('settings', settings);
+          return res.json({ success: true, totalViews: settings.totalViews });
+        }
+        
+        if (resource === 'settings' && id === 'increment-visitors') {
+          console.log('📊 增加访客数');
+          const settings = await kv.get('settings') || {};
+          settings.totalVisitors = (settings.totalVisitors || 0) + 1;
+          await kv.set('settings', settings);
+          return res.json({ success: true, totalVisitors: settings.totalVisitors });
+        }
+        
+        // 🔥 处理文章浏览量增加
+        if (resource === 'articles' && id === 'view') {
+          // URL格式: /api/articles/view?articleId=xxx
+          const articleId = query.articleId;
+          if (!articleId) {
+            return res.status(400).json({ success: false, error: '缺少文章ID' });
+          }
+          
+          console.log('📊 增加文章浏览量:', articleId);
+          const articles = await kv.get('articles') || [];
+          const articleIndex = articles.findIndex(a => String(a.id) === String(articleId));
+          
+          if (articleIndex !== -1) {
+            articles[articleIndex].views = (articles[articleIndex].views || 0) + 1;
+            await kv.set('articles', articles);
+            return res.json({ success: true, views: articles[articleIndex].views });
+          } else {
+            return res.status(404).json({ success: false, error: '文章未找到' });
+          }
+        }
+        
+        // 🔥 处理留言点赞/差评
+        if (resource === 'guestbook' && ['like', 'unlike', 'dislike', 'undislike'].includes(id)) {
+          const messageId = query.messageId;
+          if (!messageId) {
+            return res.status(400).json({ success: false, error: '缺少留言ID' });
+          }
+          
+          console.log(`📊 留言${id}操作:`, messageId);
+          const messages = await kv.get('guestbook') || [];
+          const messageIndex = messages.findIndex(m => String(m.id) === String(messageId));
+          
+          if (messageIndex !== -1) {
+            const message = messages[messageIndex];
+            
+            switch (id) {
+              case 'like':
+                message.likes = (message.likes || 0) + 1;
+                break;
+              case 'unlike':
+                message.likes = Math.max(0, (message.likes || 0) - 1);
+                break;
+              case 'dislike':
+                message.dislikes = (message.dislikes || 0) + 1;
+                break;
+              case 'undislike':
+                message.dislikes = Math.max(0, (message.dislikes || 0) - 1);
+                break;
+            }
+            
+            await kv.set('guestbook', messages);
+            return res.json({ success: true, data: message });
+          } else {
+            return res.status(404).json({ success: false, error: '留言未找到' });
+          }
+        }
+        
+        // 🔥 处理评论点赞/差评
+        if (resource === 'comments' && ['like', 'unlike', 'dislike', 'undislike'].includes(id)) {
+          const commentId = query.commentId;
+          if (!commentId) {
+            return res.status(400).json({ success: false, error: '缺少评论ID' });
+          }
+          
+          console.log(`📊 评论${id}操作:`, commentId);
+          const comments = await kv.get('comments') || [];
+          const commentIndex = comments.findIndex(c => String(c.id) === String(commentId));
+          
+          if (commentIndex !== -1) {
+            const comment = comments[commentIndex];
+            
+            switch (id) {
+              case 'like':
+                comment.likes = (comment.likes || 0) + 1;
+                break;
+              case 'unlike':
+                comment.likes = Math.max(0, (comment.likes || 0) - 1);
+                break;
+              case 'dislike':
+                comment.dislikes = (comment.dislikes || 0) + 1;
+                break;
+              case 'undislike':
+                comment.dislikes = Math.max(0, (comment.dislikes || 0) - 1);
+                break;
+            }
+            
+            await kv.set('comments', comments);
+            return res.json({ success: true, data: comment });
+          } else {
+            return res.status(404).json({ success: false, error: '评论未找到' });
+          }
+        }
+        
         // 处理用户登录验证
         if (resource === 'users' && requestBody.action === 'validate_login') {
           console.log('🔐 处理用户登录验证');

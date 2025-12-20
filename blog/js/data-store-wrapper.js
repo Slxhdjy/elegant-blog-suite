@@ -223,7 +223,20 @@ class BlogDataStoreWrapper {
     // 评论点赞相关方法（通过 API）
     async likeComment(commentId) {
         try {
-            const response = await fetch(`http://localhost:3001/api/comments/${commentId}/like`, {
+            // 🔥 根据环境选择 API 地址和格式
+            const environment = window.environmentAdapter?.environment;
+            const apiBase = window.environmentAdapter?.apiBase || 'http://localhost:3001/api';
+            
+            let url;
+            if (environment === 'vercel') {
+                // Vercel 环境：使用查询参数格式
+                url = `${apiBase}/comments/like?commentId=${commentId}`;
+            } else {
+                // 本地环境：使用路径参数格式
+                url = `${apiBase}/comments/${commentId}/like`;
+            }
+            
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -241,7 +254,17 @@ class BlogDataStoreWrapper {
 
     async unlikeComment(commentId) {
         try {
-            const response = await fetch(`http://localhost:3001/api/comments/${commentId}/unlike`, {
+            const environment = window.environmentAdapter?.environment;
+            const apiBase = window.environmentAdapter?.apiBase || 'http://localhost:3001/api';
+            
+            let url;
+            if (environment === 'vercel') {
+                url = `${apiBase}/comments/unlike?commentId=${commentId}`;
+            } else {
+                url = `${apiBase}/comments/${commentId}/unlike`;
+            }
+            
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -259,7 +282,17 @@ class BlogDataStoreWrapper {
 
     async dislikeComment(commentId) {
         try {
-            const response = await fetch(`http://localhost:3001/api/comments/${commentId}/dislike`, {
+            const environment = window.environmentAdapter?.environment;
+            const apiBase = window.environmentAdapter?.apiBase || 'http://localhost:3001/api';
+            
+            let url;
+            if (environment === 'vercel') {
+                url = `${apiBase}/comments/dislike?commentId=${commentId}`;
+            } else {
+                url = `${apiBase}/comments/${commentId}/dislike`;
+            }
+            
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -277,7 +310,17 @@ class BlogDataStoreWrapper {
 
     async undislikeComment(commentId) {
         try {
-            const response = await fetch(`http://localhost:3001/api/comments/${commentId}/undislike`, {
+            const environment = window.environmentAdapter?.environment;
+            const apiBase = window.environmentAdapter?.apiBase || 'http://localhost:3001/api';
+            
+            let url;
+            if (environment === 'vercel') {
+                url = `${apiBase}/comments/undislike?commentId=${commentId}`;
+            } else {
+                url = `${apiBase}/comments/${commentId}/undislike`;
+            }
+            
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -332,7 +375,20 @@ class BlogDataStoreWrapper {
     // 点赞相关方法（通过 API）
     async likeGuestbookMessage(id) {
         try {
-            const response = await fetch(`http://localhost:3001/api/guestbook/${id}/like`, {
+            // 🔥 根据环境选择 API 地址和格式
+            const environment = window.environmentAdapter?.environment;
+            const apiBase = window.environmentAdapter?.apiBase || 'http://localhost:3001/api';
+            
+            let url;
+            if (environment === 'vercel') {
+                // Vercel 环境：使用查询参数格式
+                url = `${apiBase}/guestbook/like?messageId=${id}`;
+            } else {
+                // 本地环境：使用路径参数格式
+                url = `${apiBase}/guestbook/${id}/like`;
+            }
+            
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -351,7 +407,17 @@ class BlogDataStoreWrapper {
 
     async unlikeGuestbookMessage(id) {
         try {
-            const response = await fetch(`http://localhost:3001/api/guestbook/${id}/unlike`, {
+            const environment = window.environmentAdapter?.environment;
+            const apiBase = window.environmentAdapter?.apiBase || 'http://localhost:3001/api';
+            
+            let url;
+            if (environment === 'vercel') {
+                url = `${apiBase}/guestbook/unlike?messageId=${id}`;
+            } else {
+                url = `${apiBase}/guestbook/${id}/unlike`;
+            }
+            
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -370,7 +436,17 @@ class BlogDataStoreWrapper {
     // 留言差评
     async dislikeGuestbookMessage(id) {
         try {
-            const response = await fetch(`http://localhost:3001/api/guestbook/${id}/dislike`, {
+            const environment = window.environmentAdapter?.environment;
+            const apiBase = window.environmentAdapter?.apiBase || 'http://localhost:3001/api';
+            
+            let url;
+            if (environment === 'vercel') {
+                url = `${apiBase}/guestbook/dislike?messageId=${id}`;
+            } else {
+                url = `${apiBase}/guestbook/${id}/dislike`;
+            }
+            
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -388,7 +464,17 @@ class BlogDataStoreWrapper {
 
     async undislikeGuestbookMessage(id) {
         try {
-            const response = await fetch(`http://localhost:3001/api/guestbook/${id}/undislike`, {
+            const environment = window.environmentAdapter?.environment;
+            const apiBase = window.environmentAdapter?.apiBase || 'http://localhost:3001/api';
+            
+            let url;
+            if (environment === 'vercel') {
+                url = `${apiBase}/guestbook/undislike?messageId=${id}`;
+            } else {
+                url = `${apiBase}/guestbook/${id}/undislike`;
+            }
+            
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });

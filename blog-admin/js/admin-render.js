@@ -102,6 +102,13 @@ async function renderDashboard() {
         }
         
         console.log('📋 刷新仪表盘数据');
+        console.log('📋 blogDataStore 状态:', {
+            exists: !!window.blogDataStore,
+            environment: window.blogDataStore?.environment,
+            hasGetStatsAsync: typeof window.blogDataStore?.getStatsAsync === 'function',
+            hasGetArticles: typeof window.blogDataStore?.getArticles === 'function',
+            hasGetComments: typeof window.blogDataStore?.getComments === 'function'
+        });
         
         // 🔥 使用异步方法获取数据，确保在Vercel环境下从API获取
         const [stats, articles, comments] = await Promise.all([
@@ -125,6 +132,7 @@ async function renderDashboard() {
         updateDashboardUI(stats, articles, comments);
     } catch (error) {
         console.error('❌ 渲染仪表盘失败:', error);
+        console.error('❌ 错误堆栈:', error.stack);
         
         // 显示错误信息
         const dashboardContainer = document.querySelector('#page-dashboard');
@@ -154,15 +162,45 @@ function updateDashboardUI(stats, articles, comments) {
             commentsCount: comments?.length || 0
         });
         
+        // 确保 stats 对象存在且有默认值
+        const safeStats = {
+            totalArticles: stats?.totalArticles || 0,
+            totalComments: stats?.totalComments || 0,
+            totalViews: stats?.totalViews || 0,
+            totalVisitors: stats?.totalVisitors || 0,
+            totalWords: stats?.totalWords || 0,
+            runningDays: stats?.runningDays || 0
+        };
+        
+        console.log('📊 安全统计数据:', safeStats);
+        
         // 更新统计卡片（带动画效果）
-        const statCards = document.querySelectorAll('#page-dashboard .stat-card');
+        const statsGrid = document.querySelector('#page-dashboard .stats-grid');
+        if (!statsGrid) {
+            console.error('❌ 未找到 stats-grid 容器');
+            return;
+        }
+        
+        const statCards = statsGrid.querySelectorAll('.stat-card');
         console.log('📊 找到统计卡片:', statCards.length, '个');
         
         if (statCards.length >= 4) {
-            animateStatNumber(statCards[0].querySelector('.stat-value'), stats.totalArticles);
-            animateStatNumber(statCards[1].querySelector('.stat-value'), stats.totalComments);
-            animateStatNumber(statCards[2].querySelector('.stat-value'), stats.totalViews);
-            animateStatNumber(statCards[3].querySelector('.stat-value'), stats.totalVisitors);
+            const statValue0 = statCards[0].querySelector('.stat-value');
+            const statValue1 = statCards[1].querySelector('.stat-value');
+            const statValue2 = statCards[2].querySelector('.stat-value');
+            const statValue3 = statCards[3].querySelector('.stat-value');
+            
+            console.log('📊 统计卡片元素:', {
+                card0: !!statValue0,
+                card1: !!statValue1,
+                card2: !!statValue2,
+                card3: !!statValue3
+            });
+            
+            if (statValue0) animateStatNumber(statValue0, safeStats.totalArticles);
+            if (statValue1) animateStatNumber(statValue1, safeStats.totalComments);
+            if (statValue2) animateStatNumber(statValue2, safeStats.totalViews);
+            if (statValue3) animateStatNumber(statValue3, safeStats.totalVisitors);
             console.log('✅ 统计卡片更新完成');
         } else {
             console.warn('⚠️ 统计卡片数量不足:', statCards.length);
@@ -224,9 +262,22 @@ async function renderArticlesTable(page = 1) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem; color:#999;">加载中...</td></tr>';
     
     try {
+        // 🔥 等待数据存储就绪
+        if (!window.blogDataStore) {
+            console.log('⏳ 等待数据存储初始化...');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            if (!window.blogDataStore) {
+                throw new Error('数据存储未初始化');
+            }
+        }
+        
         // 只在第一次或需要刷新时加载所有文章
         if (page === 1 || allArticlesData.length === 0) {
             allArticlesData = await window.blogDataStore.getArticles();
+            if (!Array.isArray(allArticlesData)) {
+                console.warn('⚠️ 文章数据格式异常:', allArticlesData);
+                allArticlesData = [];
+            }
         }
         
         articlesCurrentPage = page;
@@ -820,7 +871,13 @@ function setupCategoryButtonHandlers() {
 async function editCategory(id) {
     console.log('🔍 editCategory 调用，ID:', id, 'Type:', typeof id);
     
-    const categories = await window.blogDataStore.getCategories();
+    // 🔥 使用异步方法获取分类
+    let categories = [];
+    if (typeof window.blogDataStore.getCategoriesAsync === 'function') {
+        categories = await window.blogDataStore.getCategoriesAsync();
+    } else {
+        categories = window.blogDataStore.getCategories() || [];
+    }
     console.log('📊 获取到的分类数据:', categories.map(c => ({ id: c.id, idType: typeof c.id, name: c.name })));
     
     // 修复ID类型不匹配问题：使用字符串比较
@@ -901,7 +958,13 @@ async function updateCategory(id) {
 async function deleteCategoryConfirm(id) {
     console.log('🔍 deleteCategoryConfirm 调用，ID:', id, 'Type:', typeof id);
     
-    const categories = await window.blogDataStore.getCategories();
+    // 🔥 使用异步方法获取分类
+    let categories = [];
+    if (typeof window.blogDataStore.getCategoriesAsync === 'function') {
+        categories = await window.blogDataStore.getCategoriesAsync();
+    } else {
+        categories = window.blogDataStore.getCategories() || [];
+    }
     console.log('📊 获取到的分类数据:', categories.map(c => ({ id: c.id, idType: typeof c.id, name: c.name })));
     
     // 修复ID类型不匹配问题：使用字符串比较
@@ -943,7 +1006,13 @@ async function editTag(id) {
     console.log('editTag 函数被调用, ID:', id, 'Type:', typeof id);
     
     try {
-        const tags = await window.blogDataStore.getTags();
+        // 🔥 使用异步方法获取标签
+        let tags = [];
+        if (typeof window.blogDataStore.getTagsAsync === 'function') {
+            tags = await window.blogDataStore.getTagsAsync();
+        } else {
+            tags = window.blogDataStore.getTags() || [];
+        }
         console.log('所有标签:', tags.map(t => ({ id: t.id, type: typeof t.id })));
         
         // 兼容字符串和数字ID
@@ -1027,7 +1096,13 @@ async function deleteTagConfirm(id) {
     console.log('deleteTagConfirm 函数被调用, ID:', id, 'Type:', typeof id);
     
     try {
-        const tags = await window.blogDataStore.getTags();
+        // 🔥 使用异步方法获取标签
+        let tags = [];
+        if (typeof window.blogDataStore.getTagsAsync === 'function') {
+            tags = await window.blogDataStore.getTagsAsync();
+        } else {
+            tags = window.blogDataStore.getTags() || [];
+        }
         console.log('所有标签:', tags.map(t => ({ id: t.id, type: typeof t.id })));
         
         // 兼容字符串和数字ID
@@ -1597,7 +1672,8 @@ async function renderImagesGrid() {
 
 // 渲染音乐表格
 async function renderMusicTable() {
-    const music = await window.blogDataStore.getMusic();
+    // 🔥 使用异步方法获取音乐
+    const music = await window.blogDataStore.getMusicAsync();
     const table = document.getElementById('musicTable');
     const countEl = document.getElementById('musicCount');
     
@@ -1716,7 +1792,8 @@ function setupMusicButtonHandlers() {
 
 // 渲染视频表格
 async function renderVideosTable() {
-    const videos = await window.blogDataStore.getVideos();
+    // 🔥 使用异步方法获取视频
+    const videos = await window.blogDataStore.getVideosAsync();
     const table = document.getElementById('videosTable');
     const countEl = document.getElementById('videosCount');
     
@@ -2212,7 +2289,13 @@ async function editMusic(id) {
     
     console.log('editMusic 被调用, ID:', id);
     try {
-        const music = await window.blogDataStore.getMusicById(id);
+        // 🔥 使用异步方法获取音乐
+        let music = null;
+        if (typeof window.blogDataStore.getMusicByIdAsync === 'function') {
+            music = await window.blogDataStore.getMusicByIdAsync(id);
+        } else {
+            music = window.blogDataStore.getMusicById(id);
+        }
         console.log('获取到的音乐数据:', music);
         
         if (!music) {
@@ -2283,13 +2366,19 @@ async function updateMusicData(id) {
 }
 
 // 预览音乐
-function previewMusic(id) {
+async function previewMusic(id) {
     // 检查权限 - 预览属于读取权限
     if (!window.checkPermission('media', 'read')) {
         return;
     }
     
-    const music = window.blogDataStore.getMusicById(id);
+    // 🔥 使用异步方法获取音乐
+    let music = null;
+    if (typeof window.blogDataStore.getMusicByIdAsync === 'function') {
+        music = await window.blogDataStore.getMusicByIdAsync(id);
+    } else {
+        music = window.blogDataStore.getMusicById(id);
+    }
     if (!music) return;
 
     const isNetEaseId = /^\d+$/.test(music.url);
@@ -2351,7 +2440,13 @@ async function deleteMusicConfirm(id) {
         return;
     }
     
-    const music = await window.blogDataStore.getMusicById(id);
+    // 🔥 使用异步方法获取音乐
+    let music = null;
+    if (typeof window.blogDataStore.getMusicByIdAsync === 'function') {
+        music = await window.blogDataStore.getMusicByIdAsync(id);
+    } else {
+        music = window.blogDataStore.getMusicById(id);
+    }
     if (!music) return;
 
     if (confirm(`确定要删除 "${music.name}" 吗？此操作不可恢复。`)) {
@@ -2480,7 +2575,13 @@ async function editVideo(id) {
     
     console.log('editVideo 被调用, ID:', id);
     try {
-        const video = await window.blogDataStore.getVideoById(id);
+        // 🔥 使用异步方法获取视频
+        let video = null;
+        if (typeof window.blogDataStore.getVideoByIdAsync === 'function') {
+            video = await window.blogDataStore.getVideoByIdAsync(id);
+        } else {
+            video = window.blogDataStore.getVideoById(id);
+        }
         console.log('获取到的视频数据:', video);
         
         if (!video) {
@@ -2527,7 +2628,13 @@ async function deleteVideoConfirm(id) {
         return;
     }
     
-    const video = await window.blogDataStore.getVideoById(id);
+    // 🔥 使用异步方法获取视频
+    let video = null;
+    if (typeof window.blogDataStore.getVideoByIdAsync === 'function') {
+        video = await window.blogDataStore.getVideoByIdAsync(id);
+    } else {
+        video = window.blogDataStore.getVideoById(id);
+    }
     if (!video) return;
 
     if (confirm(`确定要删除 "${video.name}" 吗？此操作不可恢复。`)) {
@@ -3454,7 +3561,14 @@ async function editLink(id) {
         return;
     }
     
-    const link = await window.blogDataStore.getLinkById(id);
+    // 🔥 使用异步方法获取友情链接
+    let link = null;
+    if (typeof window.blogDataStore.getLinkByIdAsync === 'function') {
+        link = await window.blogDataStore.getLinkByIdAsync(id);
+    } else {
+        link = await window.blogDataStore.getLinkById(id);
+    }
+    
     if (!link) {
         showNotification('❌ 友情链接不存在', 'error');
         return;
@@ -3535,8 +3649,18 @@ async function deleteLinkConfirm(id) {
         return;
     }
     
-    const link = await window.blogDataStore.getLinkById(id);
-    if (!link) return;
+    // 🔥 使用异步方法获取友情链接
+    let link = null;
+    if (typeof window.blogDataStore.getLinkByIdAsync === 'function') {
+        link = await window.blogDataStore.getLinkByIdAsync(id);
+    } else {
+        link = await window.blogDataStore.getLinkById(id);
+    }
+    
+    if (!link) {
+        showNotification('❌ 友情链接不存在', 'error');
+        return;
+    }
 
     if (confirm(`确定要删除友情链接"${link.name}"吗？`)) {
         try {

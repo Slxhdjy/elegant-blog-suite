@@ -229,7 +229,8 @@ class EnvironmentAdapter {
     // 本地环境：更新单个项目
     async updateItemToLocal(resource, id, updates) {
         try {
-            const response = await fetch(`${this.apiBase}/${resource}?id=${id}`, {
+            // 🔥 本地服务器使用路径参数格式: /api/resource/:id
+            const response = await fetch(`${this.apiBase}/${resource}/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updates)

@@ -154,11 +154,20 @@ class PermissionManager {
                 throw new Error('数据存储未初始化');
             }
             
-            // 从用户数据中获取用户信息
-            const users = await window.blogDataStore.getUsers();
+            // 🔥 使用异步方法从用户数据中获取用户信息
+            let users = [];
+            if (typeof window.blogDataStore.getUsersAsync === 'function') {
+                users = await window.blogDataStore.getUsersAsync();
+            } else {
+                users = window.blogDataStore.getUsers() || [];
+            }
+            
+            console.log('👥 获取到用户列表:', users.length, '个用户');
+            
             const user = users.find(u => u.username === username);
             
             if (!user) {
+                console.error('❌ 用户不存在，用户名:', username, '可用用户:', users.map(u => u.username));
                 throw new Error('用户不存在');
             }
 

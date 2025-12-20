@@ -738,6 +738,61 @@ app.put('/api/settings', async (req, res) => {
     }
 });
 
+// 🔥 增加访问量 API
+app.post('/api/settings/increment-views', async (req, res) => {
+    try {
+        const settings = await readJSON('settings.json');
+        settings.totalViews = (settings.totalViews || 0) + 1;
+        await writeJSON('settings.json', settings);
+        console.log('✅ 访问量已增加:', settings.totalViews);
+        res.json({ success: true, data: { totalViews: settings.totalViews } });
+    } catch (error) {
+        console.error('❌ 增加访问量失败:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 🔥 增加访客数 API
+app.post('/api/settings/increment-visitors', async (req, res) => {
+    try {
+        const settings = await readJSON('settings.json');
+        settings.totalVisitors = (settings.totalVisitors || 0) + 1;
+        await writeJSON('settings.json', settings);
+        console.log('✅ 访客数已增加:', settings.totalVisitors);
+        res.json({ success: true, data: { totalVisitors: settings.totalVisitors } });
+    } catch (error) {
+        console.error('❌ 增加访客数失败:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 🔥 增加文章访问量 API
+app.post('/api/articles/:id/view', async (req, res) => {
+    try {
+        const articleId = parseInt(req.params.id);
+        const articles = await readJSON('articles.json');
+        const article = articles.find(a => a.id === articleId);
+        
+        if (article) {
+            article.views = (article.views || 0) + 1;
+            await writeJSON('articles.json', articles);
+            
+            // 同时更新 settings 中的总访问量
+            const settings = await readJSON('settings.json');
+            settings.totalViews = (settings.totalViews || 0) + 1;
+            await writeJSON('settings.json', settings);
+            
+            console.log(`✅ 文章 ${articleId} 访问量已增加:`, article.views);
+            res.json({ success: true, data: { views: article.views, totalViews: settings.totalViews } });
+        } else {
+            res.status(404).json({ success: false, error: '文章不存在' });
+        }
+    } catch (error) {
+        console.error('❌ 增加文章访问量失败:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // 获取背景视频列表
 app.get('/api/background-videos', (req, res) => {
     try {

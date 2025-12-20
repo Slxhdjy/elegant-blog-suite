@@ -79,18 +79,109 @@ class StatsSync {
         }, 1000);
     }
 
-    // 增加访问量（可在文章详情页调用）
-    incrementViews(articleId = null) {
-        window.blogDataStore.incrementViews(articleId);
-        this.updateAllStats();
+    // 🔥 增加访问量（根据环境调用 API）
+    async incrementViews(articleId = null) {
+        try {
+            const environment = window.environmentAdapter?.environment;
+            const apiBase = window.environmentAdapter?.apiBase;
+            
+            if (environment === 'vercel') {
+                // Vercel 环境：使用动态路由格式
+                let url;
+                if (articleId) {
+                    // 文章浏览量: /api/articles/view?articleId=xxx
+                    url = `${apiBase}/articles/view?articleId=${articleId}`;
+                } else {
+                    // 总访问量: /api/settings/increment-views
+                    url = `${apiBase}/settings/increment-views`;
+                }
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    console.log('✅ [Vercel] 访问量已更新');
+                } else {
+                    console.warn('⚠️ [Vercel] 更新访问量失败:', response.status);
+                }
+            } else if (environment === 'local') {
+                // 本地环境：使用路径参数格式
+                const url = articleId 
+                    ? `${apiBase}/articles/${articleId}/view`
+                    : `${apiBase}/settings/increment-views`;
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    console.log('✅ [本地] 访问量已更新');
+                } else {
+                    console.warn('⚠️ [本地] 更新访问量失败:', response.status);
+                }
+            } else {
+                // 静态环境：只在本地更新
+                console.log('📊 [静态环境] 访问量统计仅本地记录');
+            }
+            
+            await this.updateAllStats();
+        } catch (error) {
+            console.error('❌ 增加访问量失败:', error);
+        }
     }
 
-    // 增加访客数（可在首次访问时调用）
-    incrementVisitors() {
-        const data = window.blogDataStore.getAllData();
-        data.settings.totalVisitors++;
-        window.blogDataStore.saveAllData(data);
-        this.updateAllStats();
+    // 🔥 增加访客数（根据环境调用 API）
+    async incrementVisitors() {
+        try {
+            // 检查是否是新访客（使用 localStorage 标记）
+            const visitorKey = 'blog_visitor_marked';
+            if (localStorage.getItem(visitorKey)) {
+                console.log('📊 已标记为访客，跳过计数');
+                return;
+            }
+            
+            const environment = window.environmentAdapter?.environment;
+            const apiBase = window.environmentAdapter?.apiBase;
+            
+            if (environment === 'vercel') {
+                // Vercel 环境：使用动态路由格式
+                const response = await fetch(`${apiBase}/settings/increment-visitors`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    console.log('✅ [Vercel] 访客数已更新');
+                    localStorage.setItem(visitorKey, 'true');
+                } else {
+                    console.warn('⚠️ [Vercel] 更新访客数失败:', response.status);
+                }
+            } else if (environment === 'local') {
+                // 本地环境：调用本地服务器 API
+                const response = await fetch(`${apiBase}/settings/increment-visitors`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    console.log('✅ [本地] 访客数已更新');
+                    localStorage.setItem(visitorKey, 'true');
+                } else {
+                    console.warn('⚠️ [本地] 更新访客数失败:', response.status);
+                }
+            } else {
+                // 静态环境：只在本地标记
+                console.log('📊 [静态环境] 访客统计仅本地记录');
+                localStorage.setItem(visitorKey, 'true');
+            }
+            
+            await this.updateAllStats();
+        } catch (error) {
+            console.error('❌ 增加访客数失败:', error);
+        }
     }
 }
 

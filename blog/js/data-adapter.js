@@ -471,32 +471,76 @@ class DataAdapter {
         // 计算运行天数
         const runningDays = Math.floor((Date.now() - new Date(settings.startDate || Date.now()).getTime()) / (1000 * 60 * 60 * 24));
         
-        // 如果计算值与 settings 中的值不同，则更新 settings
-        let needUpdate = false;
-        if (settings.totalWords !== calculatedWords) {
-            settings.totalWords = calculatedWords;
-            needUpdate = true;
-        }
-        if (settings.totalViews !== calculatedViews) {
-            settings.totalViews = calculatedViews;
-            needUpdate = true;
-        }
+        // 🔥 检查是否需要更新统计数据
+        const needUpdate = (settings.totalWords !== calculatedWords) || (settings.totalViews !== calculatedViews);
         
-        // 前台只读模式：不自动更新统计数据到后端
         if (needUpdate) {
-            console.log('📊 前台计算的统计数据 (只读):', {
-                totalWords: calculatedWords,
-                totalViews: calculatedViews,
-                note: '前台不会自动保存统计数据，避免覆盖后台数据'
+            console.log('📊 统计数据有变化，准备更新:', {
+                oldWords: settings.totalWords,
+                newWords: calculatedWords,
+                oldViews: settings.totalViews,
+                newViews: calculatedViews
             });
+            
+            // 🔥 根据环境调用 API 更新统计数据
+            const environment = this.environmentAdapter?.environment;
+            
+            if (environment === 'vercel') {
+                // Vercel 环境：调用 API 更新（使用 PUT 更新 settings）
+                try {
+                    const apiBase = this.environmentAdapter.apiBase || '/api';
+                    const response = await fetch(`${apiBase}/settings`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ...settings,
+                            totalWords: calculatedWords,
+                            totalViews: calculatedViews
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        console.log('✅ [Vercel] 统计数据已更新到数据库');
+                    } else {
+                        console.warn('⚠️ [Vercel] 更新统计数据失败:', response.status);
+                    }
+                } catch (error) {
+                    console.error('❌ [Vercel] 更新统计数据出错:', error);
+                }
+            } else if (environment === 'local') {
+                // 本地环境：调用本地服务器 API 更新
+                try {
+                    const apiBase = this.environmentAdapter.apiBase || 'http://localhost:3001/api';
+                    const response = await fetch(`${apiBase}/settings`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ...settings,
+                            totalWords: calculatedWords,
+                            totalViews: calculatedViews
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        console.log('✅ [本地] 统计数据已更新到 JSON 文件');
+                    } else {
+                        console.warn('⚠️ [本地] 更新统计数据失败:', response.status);
+                    }
+                } catch (error) {
+                    console.error('❌ [本地] 更新统计数据出错:', error);
+                }
+            } else {
+                // GitHub Pages 等静态环境：只读，不更新
+                console.log('📊 [静态环境] 统计数据只读，不更新后端');
+            }
         }
         
         return {
             totalArticles: articles.filter(a => a.status === 'published').length,
             totalComments: comments.length,
-            totalViews: calculatedViews,      // 使用计算值
+            totalViews: calculatedViews,
             totalVisitors: settings.totalVisitors || 0,
-            totalWords: calculatedWords,      // 使用计算值
+            totalWords: calculatedWords,
             runningDays: runningDays
         };
     }
