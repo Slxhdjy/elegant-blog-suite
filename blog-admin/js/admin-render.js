@@ -102,9 +102,19 @@ async function renderDashboard() {
         }
         
         console.log('📋 刷新仪表盘数据');
-        const stats = await window.blogDataStore.getStats();
-        const articles = await window.blogDataStore.getArticles('published');
-        const comments = await window.blogDataStore.getComments();
+        
+        // 🔥 修改为异步调用，确保在Vercel环境下从API获取数据
+        const [stats, articles, comments] = await Promise.all([
+            Promise.resolve(window.blogDataStore.getStats()), // getStats是同步的
+            window.blogDataStore.getArticles('published'),     // 现在是异步的
+            window.blogDataStore.getComments()                 // 现在是异步的
+        ]);
+        
+        console.log('📊 仪表盘数据获取完成:', {
+            stats: stats,
+            articles: articles?.length || 0,
+            comments: comments?.length || 0
+        });
         
         // 更新缓存
         dashboardCache = {
@@ -114,52 +124,92 @@ async function renderDashboard() {
         
         updateDashboardUI(stats, articles, comments);
     } catch (error) {
-        console.error('渲染仪表盘失败:', error);
+        console.error('❌ 渲染仪表盘失败:', error);
+        
+        // 显示错误信息
+        const dashboardContainer = document.querySelector('#page-dashboard');
+        if (dashboardContainer) {
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = `
+                background: #ffebee; color: #c62828; padding: 1rem; 
+                border-radius: 8px; margin: 1rem; text-align: center;
+            `;
+            errorDiv.innerHTML = `
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚠️</div>
+                <div>仪表盘数据加载失败</div>
+                <div style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.8;">${error.message}</div>
+                <button onclick="renderDashboard()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #c62828; color: white; border: none; border-radius: 4px; cursor: pointer;">重试</button>
+            `;
+            dashboardContainer.prepend(errorDiv);
+        }
     }
 }
 
 // 更新仪表盘UI
 function updateDashboardUI(stats, articles, comments) {
     try {
+        console.log('🎨 updateDashboardUI 被调用:', {
+            stats: stats,
+            articlesCount: articles?.length || 0,
+            commentsCount: comments?.length || 0
+        });
+        
         // 更新统计卡片（带动画效果）
         const statCards = document.querySelectorAll('#page-dashboard .stat-card');
+        console.log('📊 找到统计卡片:', statCards.length, '个');
+        
         if (statCards.length >= 4) {
             animateStatNumber(statCards[0].querySelector('.stat-value'), stats.totalArticles);
             animateStatNumber(statCards[1].querySelector('.stat-value'), stats.totalComments);
             animateStatNumber(statCards[2].querySelector('.stat-value'), stats.totalViews);
             animateStatNumber(statCards[3].querySelector('.stat-value'), stats.totalVisitors);
+            console.log('✅ 统计卡片更新完成');
+        } else {
+            console.warn('⚠️ 统计卡片数量不足:', statCards.length);
         }
 
         // 渲染最近文章 - 显示所有文章
-        const recentArticles = articles; // 显示所有文章
+        const recentArticles = articles || []; // 显示所有文章
         const recentArticlesList = document.querySelector('#page-dashboard .dashboard-grid .dashboard-card:first-child .recent-list');
-        if (recentArticlesList) {
-            recentArticlesList.innerHTML = recentArticles.map(article => `
+        if (recentArticlesList && recentArticles.length > 0) {
+            recentArticlesList.innerHTML = recentArticles.slice(0, 5).map(article => `
                 <div class="recent-item">
-                    <span class="item-title">${article.title}</span>
-                    <span class="item-date">${article.publishDate}</span>
+                    <span class="item-title">${article.title || '无标题'}</span>
+                    <span class="item-date">${article.publishDate || '未知日期'}</span>
                 </div>
             `).join('');
+            console.log('✅ 最近文章列表更新完成:', recentArticles.length, '篇');
+        } else {
+            console.warn('⚠️ 最近文章列表元素未找到或无数据');
         }
 
         // 渲染最新评论 - 显示所有评论
-        const recentComments = comments; // 显示所有评论
+        const recentComments = comments || []; // 显示所有评论
         const recentCommentsList = document.querySelector('#page-dashboard .dashboard-grid .dashboard-card:last-child .recent-list');
-        if (recentCommentsList) {
-            recentCommentsList.innerHTML = recentComments.map(comment => {
+        if (recentCommentsList && recentComments.length > 0) {
+            recentCommentsList.innerHTML = recentComments.slice(0, 5).map(comment => {
                 const timeAgo = getTimeAgo(new Date(comment.time));
                 return `
                     <div class="recent-item">
-                        <span class="item-title">${comment.content}</span>
+                        <span class="item-title">${(comment.content || '无内容').substring(0, 30)}${comment.content?.length > 30 ? '...' : ''}</span>
                         <span class="item-date">${timeAgo}</span>
                     </div>
                 `;
             }).join('');
+            console.log('✅ 最新评论列表更新完成:', recentComments.length, '条');
+        } else {
+            console.warn('⚠️ 最新评论列表元素未找到或无数据');
         }
+        
+        console.log('✅ updateDashboardUI 执行完成');
     } catch (error) {
-        console.error('更新仪表盘UI失败:', error);
+        console.error('❌ 更新仪表盘UI失败:', error);
+        console.error('错误堆栈:', error.stack);
     }
 }
+
+// 确保函数在全局作用域中可用
+window.updateDashboardUI = updateDashboardUI;
 
 // 渲染文章表格
 // 文章分页变量

@@ -520,7 +520,53 @@ class BlogDataStore {
     }
 
     // 文章相关方法
-    getArticles(status = null) {
+    async getArticles(status = null) {
+        // 强制检查Vercel环境，直接使用API
+        const hostname = window.location.hostname;
+        const isVercelEnv = hostname.includes('vercel.app') || 
+                           hostname.includes('vercel.com') ||
+                           hostname.includes('web3v.vip') || 
+                           hostname.includes('slxhdjy.top');
+        
+        if (isVercelEnv || this.useApi) {
+            try {
+                const apiBase = this.getApiBaseURL();
+                console.log('📡 从API获取文章列表，URL:', `${apiBase}/articles`);
+                
+                const response = await fetch(`${apiBase}/articles`);
+                
+                if (!response.ok) {
+                    throw new Error(`API请求失败: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('✅ API返回文章列表:', result);
+                
+                let articles = [];
+                if (result.success && result.data) {
+                    articles = result.data;
+                } else if (Array.isArray(result)) {
+                    articles = result;
+                } else {
+                    console.warn('⚠️ API返回格式异常:', result);
+                    articles = [];
+                }
+                
+                console.log('📊 文章数据处理完成:', articles.length, '篇');
+                
+                if (status) {
+                    return articles.filter(article => article.status === status);
+                }
+                return articles;
+            } catch (error) {
+                console.error('❌ API获取文章失败:', error);
+                // 降级到localStorage
+                console.log('🔄 降级到localStorage');
+            }
+        }
+        
+        // 降级方案：从localStorage获取
+        console.log('💾 从localStorage获取文章');
         const data = this.getAllData();
         if (status) {
             return data.articles.filter(article => article.status === status);
@@ -926,7 +972,53 @@ class BlogDataStore {
     }
 
     // 评论相关方法
-    getComments(status = null) {
+    async getComments(status = null) {
+        // 强制检查Vercel环境，直接使用API
+        const hostname = window.location.hostname;
+        const isVercelEnv = hostname.includes('vercel.app') || 
+                           hostname.includes('vercel.com') ||
+                           hostname.includes('web3v.vip') || 
+                           hostname.includes('slxhdjy.top');
+        
+        if (isVercelEnv || this.useApi) {
+            try {
+                const apiBase = this.getApiBaseURL();
+                console.log('📡 从API获取评论列表，URL:', `${apiBase}/comments`);
+                
+                const response = await fetch(`${apiBase}/comments`);
+                
+                if (!response.ok) {
+                    throw new Error(`API请求失败: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('✅ API返回评论列表:', result);
+                
+                let comments = [];
+                if (result.success && result.data) {
+                    comments = result.data;
+                } else if (Array.isArray(result)) {
+                    comments = result;
+                } else {
+                    console.warn('⚠️ API返回格式异常:', result);
+                    comments = [];
+                }
+                
+                console.log('📊 评论数据处理完成:', comments.length, '条');
+                
+                if (status) {
+                    return comments.filter(comment => comment.status === status);
+                }
+                return comments;
+            } catch (error) {
+                console.error('❌ API获取评论失败:', error);
+                // 降级到localStorage
+                console.log('🔄 降级到localStorage');
+            }
+        }
+        
+        // 降级方案：从localStorage获取
+        console.log('💾 从localStorage获取评论');
         const data = this.getAllData();
         if (status) {
             return data.comments.filter(comment => comment.status === status);
@@ -1278,10 +1370,14 @@ class BlogDataStore {
         // 计算运行天数
         const runningDays = Math.floor((Date.now() - new Date(data.settings.startDate).getTime()) / (1000 * 60 * 60 * 24));
         
-        // 更新设置中的统计数据
-        data.settings.totalWords = totalWords;
-        data.settings.totalViews = totalViews;
-        this.saveAllData(data);
+        // 🔥 移除自动保存逻辑，避免每次获取统计时都触发保存
+        // 统计数据应该是只读的，不应该自动修改设置
+        console.log('📊 统计数据计算完成 (只读):', {
+            totalWords: totalWords,
+            totalViews: totalViews,
+            settingsWords: data.settings.totalWords,
+            settingsViews: data.settings.totalViews
+        });
         
         return {
             totalArticles: data.articles.filter(a => a.status === 'published').length,

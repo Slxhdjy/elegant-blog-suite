@@ -45,11 +45,61 @@ async function testDataFetch() {
         
         // 测试仪表盘渲染
         console.log('🎨 测试仪表盘渲染...');
+        
+        // 检查函数是否存在
+        console.log('🔍 检查updateDashboardUI函数:', {
+            exists: typeof updateDashboardUI !== 'undefined',
+            type: typeof updateDashboardUI,
+            inWindow: typeof window.updateDashboardUI !== 'undefined',
+            inGlobal: 'updateDashboardUI' in window
+        });
+        
+        // 尝试多种方式调用函数
+        let uiUpdateSuccess = false;
+        
         if (typeof updateDashboardUI === 'function') {
-            updateDashboardUI(stats, articles, comments);
-            console.log('✅ 仪表盘UI更新成功');
+            try {
+                updateDashboardUI(stats, articles, comments);
+                console.log('✅ 仪表盘UI更新成功 (直接调用)');
+                uiUpdateSuccess = true;
+            } catch (error) {
+                console.error('❌ 直接调用updateDashboardUI失败:', error);
+            }
+        } else if (typeof window.updateDashboardUI === 'function') {
+            try {
+                window.updateDashboardUI(stats, articles, comments);
+                console.log('✅ 仪表盘UI更新成功 (window调用)');
+                uiUpdateSuccess = true;
+            } catch (error) {
+                console.error('❌ window调用updateDashboardUI失败:', error);
+            }
         } else {
             console.error('❌ updateDashboardUI 函数不存在');
+            
+            // 尝试手动调用renderDashboard
+            if (typeof renderDashboard === 'function') {
+                console.log('🔄 尝试调用renderDashboard函数...');
+                try {
+                    await renderDashboard();
+                    console.log('✅ renderDashboard调用成功');
+                    uiUpdateSuccess = true;
+                } catch (error) {
+                    console.error('❌ renderDashboard调用失败:', error);
+                }
+            } else if (typeof window.renderDashboard === 'function') {
+                console.log('🔄 尝试调用window.renderDashboard函数...');
+                try {
+                    await window.renderDashboard();
+                    console.log('✅ window.renderDashboard调用成功');
+                    uiUpdateSuccess = true;
+                } catch (error) {
+                    console.error('❌ window.renderDashboard调用失败:', error);
+                }
+            }
+        }
+        
+        if (!uiUpdateSuccess) {
+            console.warn('⚠️ 所有UI更新尝试都失败了，可能需要手动刷新页面');
         }
         
     } catch (error) {
