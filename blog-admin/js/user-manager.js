@@ -250,7 +250,7 @@ class UserManager {
             }
             
             // 角色修改权限检查
-            if (updates.role) {
+            if (updates.role && updates.role !== users[userIndex].role) {
                 // 任何用户都不能修改自己的角色
                 if (currentUser.username === username) {
                     return {

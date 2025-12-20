@@ -12,6 +12,19 @@ class AdminVideoBackgroundManager {
     async init() {
         console.log('🎬 初始化后台视频背景管理器...');
         
+        // 🔥 等待数据存储就绪
+        let retryCount = 0;
+        const maxRetries = 10;
+        while (!window.blogDataStore && retryCount < maxRetries) {
+            console.log(`⏳ 等待数据存储初始化... (${retryCount + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, 300));
+            retryCount++;
+        }
+        
+        if (!window.blogDataStore) {
+            console.warn('⚠️ 数据存储未就绪，使用降级方案');
+        }
+        
         // 检查是否启用后台视频背景
         const enabled = await this.isVideoBackgroundEnabled();
         if (!enabled) {
@@ -38,7 +51,7 @@ class AdminVideoBackgroundManager {
     async isVideoBackgroundEnabled() {
         try {
             // 从数据存储获取设置
-            if (window.blogDataStore) {
+            if (window.blogDataStore && typeof window.blogDataStore.getSettings === 'function') {
                 const settings = await window.blogDataStore.getSettings();
                 return settings.enableBackendVideoBackground !== false; // 默认启用
             }
@@ -54,7 +67,14 @@ class AdminVideoBackgroundManager {
             console.log('📡 正在获取背景视频列表...');
             // 使用数据存储包装器获取视频列表
             if (window.blogDataStore) {
-                const videos = await window.blogDataStore.getVideos();
+                // 🔥 使用异步方法获取视频
+                let videos;
+                if (typeof window.blogDataStore.getVideosAsync === 'function') {
+                    videos = await window.blogDataStore.getVideosAsync();
+                } else {
+                    videos = window.blogDataStore.getVideos();
+                }
+                
                 if (videos && Array.isArray(videos) && videos.length > 0) {
                     // 过滤出BG类型的视频作为背景视频
                     const backgroundVideos = videos.filter(video => video.category === 'BG');
