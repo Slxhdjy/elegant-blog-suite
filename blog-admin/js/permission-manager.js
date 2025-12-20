@@ -312,6 +312,22 @@ class PermissionManager {
                 }
             }
         });
+        
+        // 🔥 同时隐藏对应的页面内容区域
+        const pagePermissions = {
+            'page-users': { module: 'users', action: 'read' },
+            'page-settings': { module: 'settings', action: 'read' }
+        };
+        
+        Object.entries(pagePermissions).forEach(([elementId, permission]) => {
+            const element = document.getElementById(elementId);
+            if (element) {
+                if (!this.hasPermission(permission.module, permission.action)) {
+                    element.style.display = 'none';
+                    console.log(`🔒 隐藏页面内容: ${elementId}`);
+                }
+            }
+        });
     }
 
     // 为按钮添加权限检查（不隐藏，点击时检查）

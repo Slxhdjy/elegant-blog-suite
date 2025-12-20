@@ -151,6 +151,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 切换到指定页面的函数
     function switchToPage(pageName) {
+        // 🔥 权限检查 - 检查用户是否有权限访问该页面
+        const pagePermissions = {
+            'users': { module: 'users', action: 'read' },
+            'settings': { module: 'settings', action: 'read' }
+        };
+        
+        if (pagePermissions[pageName]) {
+            const permission = pagePermissions[pageName];
+            if (window.permissionManager && !window.permissionManager.hasPermission(permission.module, permission.action)) {
+                console.log(`🚫 没有权限访问页面: ${pageName}`);
+                showNotification('您没有权限访问该页面', 'error');
+                return; // 阻止切换
+            }
+        }
+        
         // 保存当前页面状态
         if (currentPage) {
             PageStateManager.saveState(currentPage);
