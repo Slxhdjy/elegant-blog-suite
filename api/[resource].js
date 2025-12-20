@@ -113,28 +113,32 @@ export default async function handler(req, res) {
         }
 
       case 'POST':
-        console.log('POST请求详情:', { url: req.url, resource, body: requestBody });
+        console.log('POST请求详情:', { url: req.url, resource, id, query, body: requestBody });
         
-        // 🔥 处理统计增量操作
-        if (resource === 'settings' && id === 'increment-views') {
+        // 🔥 处理统计增量操作 - 支持查询参数格式
+        const action = query.action || id;
+        
+        if (resource === 'settings' && action === 'increment-views') {
           console.log('📊 增加访问量');
           const settings = await kv.get('settings') || {};
           settings.totalViews = (settings.totalViews || 0) + 1;
           await kv.set('settings', settings);
+          console.log('📊 访问量更新成功:', settings.totalViews);
           return res.json({ success: true, totalViews: settings.totalViews });
         }
         
-        if (resource === 'settings' && id === 'increment-visitors') {
+        if (resource === 'settings' && action === 'increment-visitors') {
           console.log('📊 增加访客数');
           const settings = await kv.get('settings') || {};
           settings.totalVisitors = (settings.totalVisitors || 0) + 1;
           await kv.set('settings', settings);
+          console.log('📊 访客数更新成功:', settings.totalVisitors);
           return res.json({ success: true, totalVisitors: settings.totalVisitors });
         }
         
-        // 🔥 处理文章浏览量增加
-        if (resource === 'articles' && id === 'view') {
-          // URL格式: /api/articles/view?articleId=xxx
+        // 🔥 处理文章浏览量增加 - 支持查询参数格式
+        if (resource === 'articles' && (action === 'view' || id === 'view')) {
+          // URL格式: /api/articles?action=view&articleId=xxx
           const articleId = query.articleId;
           if (!articleId) {
             return res.status(400).json({ success: false, error: '缺少文章ID' });
@@ -147,6 +151,7 @@ export default async function handler(req, res) {
           if (articleIndex !== -1) {
             articles[articleIndex].views = (articles[articleIndex].views || 0) + 1;
             await kv.set('articles', articles);
+            console.log('📊 文章浏览量更新成功:', articles[articleIndex].views);
             return res.json({ success: true, views: articles[articleIndex].views });
           } else {
             return res.status(404).json({ success: false, error: '文章未找到' });

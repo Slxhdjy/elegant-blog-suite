@@ -11,9 +11,27 @@ class StatsSync {
         if (window.blogDataStore) {
             this.updateAllStats();
             this.startAutoUpdate();
+            
+            // 🔥 页面加载时自动增加访问量和访客数
+            this.trackPageView();
         } else {
             // 如果数据存储还未加载，等待一下
             setTimeout(() => this.init(), 100);
+        }
+    }
+    
+    // 🔥 追踪页面访问
+    async trackPageView() {
+        try {
+            // 增加总访问量（每次页面加载都计数）
+            await this.incrementViews();
+            
+            // 增加访客数（新访客才计数，使用 localStorage 标记）
+            await this.incrementVisitors();
+            
+            console.log('📊 页面访问已记录');
+        } catch (error) {
+            console.error('❌ 追踪页面访问失败:', error);
         }
     }
 
@@ -85,26 +103,34 @@ class StatsSync {
             const environment = window.environmentAdapter?.environment;
             const apiBase = window.environmentAdapter?.apiBase;
             
+            console.log('📊 incrementViews 调用:', { environment, apiBase, articleId });
+            
             if (environment === 'vercel') {
-                // Vercel 环境：使用动态路由格式
+                // Vercel 环境：使用查询参数格式
+                // /api/settings?action=increment-views
                 let url;
                 if (articleId) {
-                    // 文章浏览量: /api/articles/view?articleId=xxx
-                    url = `${apiBase}/articles/view?articleId=${articleId}`;
+                    // 文章浏览量: /api/articles?action=view&articleId=xxx
+                    url = `${apiBase}/articles?action=view&articleId=${articleId}`;
                 } else {
-                    // 总访问量: /api/settings/increment-views
-                    url = `${apiBase}/settings/increment-views`;
+                    // 总访问量: /api/settings?action=increment-views
+                    url = `${apiBase}/settings?action=increment-views`;
                 }
+                
+                console.log('📊 [Vercel] 请求URL:', url);
                 
                 const response = await fetch(url, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
                 });
                 
                 if (response.ok) {
-                    console.log('✅ [Vercel] 访问量已更新');
+                    const result = await response.json();
+                    console.log('✅ [Vercel] 访问量已更新:', result);
                 } else {
-                    console.warn('⚠️ [Vercel] 更新访问量失败:', response.status);
+                    const errorText = await response.text();
+                    console.warn('⚠️ [Vercel] 更新访问量失败:', response.status, errorText);
                 }
             } else if (environment === 'local') {
                 // 本地环境：使用路径参数格式
@@ -146,18 +172,26 @@ class StatsSync {
             const environment = window.environmentAdapter?.environment;
             const apiBase = window.environmentAdapter?.apiBase;
             
+            console.log('📊 incrementVisitors 调用:', { environment, apiBase });
+            
             if (environment === 'vercel') {
-                // Vercel 环境：使用动态路由格式
-                const response = await fetch(`${apiBase}/settings/increment-visitors`, {
+                // Vercel 环境：使用查询参数格式
+                const url = `${apiBase}/settings?action=increment-visitors`;
+                console.log('📊 [Vercel] 请求URL:', url);
+                
+                const response = await fetch(url, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
                 });
                 
                 if (response.ok) {
-                    console.log('✅ [Vercel] 访客数已更新');
+                    const result = await response.json();
+                    console.log('✅ [Vercel] 访客数已更新:', result);
                     localStorage.setItem(visitorKey, 'true');
                 } else {
-                    console.warn('⚠️ [Vercel] 更新访客数失败:', response.status);
+                    const errorText = await response.text();
+                    console.warn('⚠️ [Vercel] 更新访客数失败:', response.status, errorText);
                 }
             } else if (environment === 'local') {
                 // 本地环境：调用本地服务器 API
