@@ -1629,7 +1629,7 @@ class BlogDataStore {
 
     // 统计方法
     getStats() {
-        // 🔥 在Vercel环境下，同步方法可能返回不完整数据
+        // 🔥 在Vercel环境下，同步方法返回空数据，强制使用异步方法
         const hostname = window.location.hostname;
         const isVercelEnv = hostname.includes('vercel.app') || 
                            hostname.includes('vercel.com') ||
@@ -1637,7 +1637,15 @@ class BlogDataStore {
                            hostname.includes('slxhdjy.top');
         
         if (isVercelEnv) {
-            console.warn('⚠️ Vercel环境下请使用 getStatsAsync() 异步方法');
+            console.warn('⚠️ Vercel环境下请使用 getStatsAsync() 异步方法，同步方法返回空数据');
+            return {
+                totalArticles: 0,
+                totalComments: 0,
+                totalViews: 0,
+                totalVisitors: 0,
+                totalWords: 0,
+                runningDays: 0
+            };
         }
         
         const data = this.getAllData();
@@ -1684,11 +1692,19 @@ class BlogDataStore {
             // Vercel环境 - 从API获取
             try {
                 const apiBase = this.getApiBaseURL();
+                console.log('📊 [Vercel] 开始从API获取统计数据, apiBase:', apiBase);
+                
                 const [articlesRes, commentsRes, settingsRes] = await Promise.all([
                     fetch(`${apiBase}/articles`),
                     fetch(`${apiBase}/comments`),
                     fetch(`${apiBase}/settings`)
                 ]);
+                
+                console.log('📊 [Vercel] API响应状态:', {
+                    articles: articlesRes.status,
+                    comments: commentsRes.status,
+                    settings: settingsRes.status
+                });
                 
                 let articles = [];
                 let comments = [];
@@ -1697,40 +1713,56 @@ class BlogDataStore {
                 if (articlesRes.ok) {
                     const result = await articlesRes.json();
                     articles = result.success && result.data ? result.data : (Array.isArray(result) ? result : []);
+                    console.log('📊 [Vercel] 文章数据:', articles.length, '篇');
+                } else {
+                    console.warn('⚠️ [Vercel] 文章API请求失败:', articlesRes.status);
                 }
                 
                 if (commentsRes.ok) {
                     const result = await commentsRes.json();
                     comments = result.success && result.data ? result.data : (Array.isArray(result) ? result : []);
+                    console.log('📊 [Vercel] 评论数据:', comments.length, '条');
+                } else {
+                    console.warn('⚠️ [Vercel] 评论API请求失败:', commentsRes.status);
                 }
                 
                 if (settingsRes.ok) {
                     const result = await settingsRes.json();
                     settings = result.success && result.data ? result.data : (result || {});
+                    console.log('📊 [Vercel] 设置数据:', settings);
+                } else {
+                    console.warn('⚠️ [Vercel] 设置API请求失败:', settingsRes.status);
                 }
                 
                 const publishedArticles = articles.filter(a => a.status === 'published');
-                const totalWords = publishedArticles.reduce((sum, article) => sum + (article.content?.length || 0), 0);
-                const totalViews = articles.reduce((sum, article) => sum + (article.views || 0), 0);
+                const calculatedTotalWords = publishedArticles.reduce((sum, article) => sum + (article.content?.length || 0), 0);
+                const calculatedTotalViews = articles.reduce((sum, article) => sum + (article.views || 0), 0);
                 const runningDays = Math.floor((Date.now() - new Date(settings.startDate || Date.now()).getTime()) / (1000 * 60 * 60 * 24));
                 
-                console.log('📊 [Vercel] 统计数据获取完成:', {
+                // 🔥 优先使用 settings 中的值，如果没有则使用计算值
+                const stats = {
                     totalArticles: publishedArticles.length,
                     totalComments: comments.length,
-                    totalViews: totalViews
-                });
-                
-                return {
-                    totalArticles: publishedArticles.length,
-                    totalComments: comments.length,
-                    totalViews: totalViews,
+                    totalViews: settings.totalViews || calculatedTotalViews,
                     totalVisitors: settings.totalVisitors || 0,
-                    totalWords: totalWords,
+                    totalWords: settings.totalWords || calculatedTotalWords,
                     runningDays: runningDays
                 };
+                
+                console.log('📊 [Vercel] 统计数据获取完成:', stats);
+                
+                return stats;
             } catch (error) {
                 console.error('❌ [Vercel] API获取统计失败:', error);
-                return this.getStats();
+                // 🔥 Vercel环境下API失败时返回空数据，不要回退到localStorage
+                return {
+                    totalArticles: 0,
+                    totalComments: 0,
+                    totalViews: 0,
+                    totalVisitors: 0,
+                    totalWords: 0,
+                    runningDays: 0
+                };
             }
         } else {
             // 本地/GitHub Pages环境 - 从JSON文件获取
