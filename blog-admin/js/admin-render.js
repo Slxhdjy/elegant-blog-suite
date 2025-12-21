@@ -226,7 +226,9 @@ function updateDashboardUI(stats, articles, comments) {
         const recentCommentsList = document.querySelector('#page-dashboard .dashboard-grid .dashboard-card:last-child .recent-list');
         if (recentCommentsList && recentComments.length > 0) {
             recentCommentsList.innerHTML = recentComments.slice(0, 5).map(comment => {
-                const timeAgo = getTimeAgo(new Date(comment.time));
+                // 🔥 兼容 time 和 createdAt 两种字段名
+                const commentTime = comment.time || comment.createdAt;
+                const timeAgo = commentTime ? getTimeAgo(new Date(commentTime)) : '未知时间';
                 return `
                     <div class="recent-item">
                         <span class="item-title">${(comment.content || '无内容').substring(0, 30)}${comment.content?.length > 30 ? '...' : ''}</span>
@@ -668,7 +670,9 @@ async function renderCommentsTable() {
         }
         
         tbody.innerHTML = comments.map(comment => {
-            const timeAgo = getTimeAgo(new Date(comment.time));
+            // 🔥 兼容 time 和 createdAt 两种字段名
+            const commentTime = comment.time || comment.createdAt;
+            const timeAgo = commentTime ? getTimeAgo(new Date(commentTime)) : '未知时间';
             // 如果没有status字段，默认为pending
             const status = comment.status || 'pending';
             const isApproved = status === 'approved';
@@ -1379,20 +1383,36 @@ async function deleteCommentConfirm(id) {
     }
 }
 
-// 计算时间差
+// 计算时间差（兼容多种时间字段和格式）
 function getTimeAgo(date) {
+    // 🔥 检查日期是否有效
+    if (!date || isNaN(date.getTime())) {
+        return '未知时间';
+    }
+    
     const now = new Date();
     const diff = now - date;
+    
+    // 🔥 检查时间差是否有效
+    if (isNaN(diff) || diff < 0) {
+        return '未知时间';
+    }
+    
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
 
-    if (minutes < 60) {
+    if (minutes < 1) {
+        return '刚刚';
+    } else if (minutes < 60) {
         return `${minutes}分钟前`;
     } else if (hours < 24) {
         return `${hours}小时前`;
-    } else {
+    } else if (days < 30) {
         return `${days}天前`;
+    } else {
+        // 超过30天显示具体日期
+        return date.toLocaleDateString('zh-CN');
     }
 }
 

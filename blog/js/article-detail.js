@@ -11,6 +11,81 @@ document.addEventListener('DOMContentLoaded', function() {
     loadSiteAvatar();
 });
 
+// 🔥 增加文章浏览量（直接调用 API）
+async function incrementArticleViews(articleId) {
+    try {
+        const environment = window.environmentAdapter?.environment;
+        const apiBase = window.environmentAdapter?.apiBase;
+        
+        // 检查是否已经统计过这篇文章（避免刷新重复计数）
+        const viewedKey = `article_viewed_${articleId}`;
+        const lastViewed = localStorage.getItem(viewedKey);
+        const now = Date.now();
+        
+        // 如果 5 分钟内已经统计过，跳过
+        if (lastViewed && (now - parseInt(lastViewed)) < 5 * 60 * 1000) {
+            console.log('📊 5分钟内已统计过浏览量，跳过');
+            return;
+        }
+        
+        console.log('📊 增加文章浏览量:', { articleId, environment, apiBase });
+        
+        if (environment === 'vercel') {
+            // Vercel 环境：使用查询参数格式
+            const url = `${apiBase}/articles?action=view&articleId=${articleId}`;
+            console.log('📊 [Vercel] 请求URL:', url);
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ [Vercel] 文章浏览量已更新:', result);
+                // 更新本地显示
+                if (result.views && currentArticle) {
+                    currentArticle.views = result.views;
+                    const viewsEl = document.getElementById('articleViews');
+                    if (viewsEl) viewsEl.textContent = result.views;
+                }
+            } else {
+                console.warn('⚠️ [Vercel] 更新浏览量失败:', response.status);
+            }
+        } else if (environment === 'local') {
+            // 本地环境：使用路径参数格式
+            const url = `${apiBase}/articles/${articleId}/view`;
+            console.log('📊 [本地] 请求URL:', url);
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ [本地] 文章浏览量已更新:', result);
+                if (result.views && currentArticle) {
+                    currentArticle.views = result.views;
+                    const viewsEl = document.getElementById('articleViews');
+                    if (viewsEl) viewsEl.textContent = result.views;
+                }
+            } else {
+                console.warn('⚠️ [本地] 更新浏览量失败:', response.status);
+            }
+        } else {
+            // GitHub Pages 等静态环境：只在本地记录
+            console.log('📊 [静态环境] 浏览量统计仅本地记录');
+        }
+        
+        // 记录已统计
+        localStorage.setItem(viewedKey, now.toString());
+        
+    } catch (error) {
+        console.error('❌ 增加文章浏览量失败:', error);
+    }
+}
+
 // 加载文章详情（异步）
 async function loadArticleDetail() {
     // 从URL获取文章ID
@@ -52,8 +127,8 @@ async function loadArticleDetail() {
             return;
         }
         
-        // 前台只读模式，不增加浏览量
-        // window.blogDataStore.incrementViews(currentArticleId);
+        // 🔥 增加文章浏览量（调用 API）
+        await incrementArticleViews(currentArticleId);
         
         // 渲染文章
         renderArticle();
