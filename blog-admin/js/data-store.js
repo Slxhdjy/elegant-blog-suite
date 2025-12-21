@@ -1431,8 +1431,12 @@ class BlogDataStore {
                 console.warn('⚠️ 无法获取当前设置:', error.message);
             }
             
-            // 合并设置
-            const mergedSettings = { ...currentSettings, ...updates };
+            // 合并设置，并添加后台更新标记
+            const mergedSettings = { 
+                ...currentSettings, 
+                ...updates,
+                _adminUpdate: true  // 🔥 标记为后台更新，允许更新所有字段
+            };
             
             const response = await fetch(`${apiBase}/settings`, {
                 method: 'PUT',

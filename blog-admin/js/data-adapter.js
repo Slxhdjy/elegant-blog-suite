@@ -634,7 +634,11 @@ class DataAdapter {
 
     async updateSettings(updates) {
         const settings = await this.getSettings();
-        const newSettings = { ...settings, ...updates };
+        const newSettings = { 
+            ...settings, 
+            ...updates,
+            _adminUpdate: true  // 🔥 标记为后台更新
+        };
         await this.saveData('settings', newSettings);
         return newSettings;
     }

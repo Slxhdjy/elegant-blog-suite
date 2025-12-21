@@ -205,7 +205,10 @@ class APIClient {
     async updateSettings(settings) {
         return this.request('/settings', {
             method: 'PUT',
-            body: JSON.stringify(settings)
+            body: JSON.stringify({
+                ...settings,
+                _adminUpdate: true  // 🔥 标记为后台更新
+            })
         });
     }
 

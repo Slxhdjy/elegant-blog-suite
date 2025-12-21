@@ -229,13 +229,14 @@ class BlogDataStoreWrapper {
             
             let url;
             if (environment === 'vercel') {
-                // Vercel 环境：使用查询参数格式
-                url = `${apiBase}/comments/like?commentId=${commentId}`;
+                // Vercel 环境：使用查询参数格式 /api/comments?action=like&commentId=xxx
+                url = `${apiBase}/comments?action=like&commentId=${commentId}`;
             } else {
                 // 本地环境：使用路径参数格式
                 url = `${apiBase}/comments/${commentId}/like`;
             }
             
+            console.log('📡 评论点赞请求:', url);
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
@@ -245,7 +246,7 @@ class BlogDataStoreWrapper {
                 console.log('✅ 评论点赞成功');
                 return result.data;
             }
-            throw new Error(result.message || '点赞失败');
+            throw new Error(result.message || result.error || '点赞失败');
         } catch (error) {
             console.error('❌ 评论点赞失败:', error);
             throw error;
@@ -259,11 +260,12 @@ class BlogDataStoreWrapper {
             
             let url;
             if (environment === 'vercel') {
-                url = `${apiBase}/comments/unlike?commentId=${commentId}`;
+                url = `${apiBase}/comments?action=unlike&commentId=${commentId}`;
             } else {
                 url = `${apiBase}/comments/${commentId}/unlike`;
             }
             
+            console.log('📡 取消评论点赞请求:', url);
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
@@ -273,7 +275,7 @@ class BlogDataStoreWrapper {
                 console.log('✅ 取消评论点赞成功');
                 return result.data;
             }
-            throw new Error(result.message || '取消点赞失败');
+            throw new Error(result.message || result.error || '取消点赞失败');
         } catch (error) {
             console.error('❌ 取消评论点赞失败:', error);
             throw error;
@@ -287,11 +289,12 @@ class BlogDataStoreWrapper {
             
             let url;
             if (environment === 'vercel') {
-                url = `${apiBase}/comments/dislike?commentId=${commentId}`;
+                url = `${apiBase}/comments?action=dislike&commentId=${commentId}`;
             } else {
                 url = `${apiBase}/comments/${commentId}/dislike`;
             }
             
+            console.log('📡 评论差评请求:', url);
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
@@ -301,7 +304,7 @@ class BlogDataStoreWrapper {
                 console.log('✅ 评论差评成功');
                 return result.data;
             }
-            throw new Error(result.message || '差评失败');
+            throw new Error(result.message || result.error || '差评失败');
         } catch (error) {
             console.error('❌ 评论差评失败:', error);
             throw error;
@@ -315,11 +318,12 @@ class BlogDataStoreWrapper {
             
             let url;
             if (environment === 'vercel') {
-                url = `${apiBase}/comments/undislike?commentId=${commentId}`;
+                url = `${apiBase}/comments?action=undislike&commentId=${commentId}`;
             } else {
                 url = `${apiBase}/comments/${commentId}/undislike`;
             }
             
+            console.log('📡 取消评论差评请求:', url);
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
@@ -329,7 +333,7 @@ class BlogDataStoreWrapper {
                 console.log('✅ 取消评论差评成功');
                 return result.data;
             }
-            throw new Error(result.message || '取消差评失败');
+            throw new Error(result.message || result.error || '取消差评失败');
         } catch (error) {
             console.error('❌ 取消评论差评失败:', error);
             throw error;
@@ -381,13 +385,14 @@ class BlogDataStoreWrapper {
             
             let url;
             if (environment === 'vercel') {
-                // Vercel 环境：使用查询参数格式
-                url = `${apiBase}/guestbook/like?messageId=${id}`;
+                // Vercel 环境：使用查询参数格式 /api/guestbook?action=like&messageId=xxx
+                url = `${apiBase}/guestbook?action=like&messageId=${id}`;
             } else {
                 // 本地环境：使用路径参数格式
                 url = `${apiBase}/guestbook/${id}/like`;
             }
             
+            console.log('📡 点赞请求:', url);
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
@@ -397,10 +402,9 @@ class BlogDataStoreWrapper {
                 console.log('✅ 点赞成功');
                 return result.data;
             }
-            throw new Error(result.message || '点赞失败');
+            throw new Error(result.message || result.error || '点赞失败');
         } catch (error) {
             console.error('❌ 点赞失败:', error);
-            alert('点赞失败，请确保服务器正在运行');
             return null;
         }
     }
@@ -412,11 +416,12 @@ class BlogDataStoreWrapper {
             
             let url;
             if (environment === 'vercel') {
-                url = `${apiBase}/guestbook/unlike?messageId=${id}`;
+                url = `${apiBase}/guestbook?action=unlike&messageId=${id}`;
             } else {
                 url = `${apiBase}/guestbook/${id}/unlike`;
             }
             
+            console.log('📡 取消点赞请求:', url);
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
@@ -426,7 +431,7 @@ class BlogDataStoreWrapper {
                 console.log('✅ 取消点赞成功');
                 return result.data;
             }
-            throw new Error(result.message || '取消点赞失败');
+            throw new Error(result.message || result.error || '取消点赞失败');
         } catch (error) {
             console.error('❌ 取消点赞失败:', error);
             return null;
@@ -441,11 +446,12 @@ class BlogDataStoreWrapper {
             
             let url;
             if (environment === 'vercel') {
-                url = `${apiBase}/guestbook/dislike?messageId=${id}`;
+                url = `${apiBase}/guestbook?action=dislike&messageId=${id}`;
             } else {
                 url = `${apiBase}/guestbook/${id}/dislike`;
             }
             
+            console.log('📡 差评请求:', url);
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
@@ -455,7 +461,7 @@ class BlogDataStoreWrapper {
                 console.log('✅ 留言差评成功');
                 return result.data;
             }
-            throw new Error(result.message || '差评失败');
+            throw new Error(result.message || result.error || '差评失败');
         } catch (error) {
             console.error('❌ 留言差评失败:', error);
             throw error;
@@ -469,11 +475,12 @@ class BlogDataStoreWrapper {
             
             let url;
             if (environment === 'vercel') {
-                url = `${apiBase}/guestbook/undislike?messageId=${id}`;
+                url = `${apiBase}/guestbook?action=undislike&messageId=${id}`;
             } else {
                 url = `${apiBase}/guestbook/${id}/undislike`;
             }
             
+            console.log('📡 取消差评请求:', url);
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
@@ -483,7 +490,7 @@ class BlogDataStoreWrapper {
                 console.log('✅ 取消留言差评成功');
                 return result.data;
             }
-            throw new Error(result.message || '取消差评失败');
+            throw new Error(result.message || result.error || '取消差评失败');
         } catch (error) {
             console.error('❌ 取消留言差评失败:', error);
             throw error;
@@ -895,17 +902,54 @@ class BlogDataStoreWrapper {
     // 增加文章点赞数
     async incrementLikes(articleId) {
         try {
-            const articles = await this.adapter.getArticles();
-            const article = articles.find(a => a.id === parseInt(articleId));
+            const environment = window.environmentAdapter?.environment;
+            const apiBase = window.environmentAdapter?.apiBase || 'http://localhost:3001/api';
             
-            if (article) {
-                article.likes = (article.likes || 0) + 1;
-                await this.adapter.updateArticle(article.id, { likes: article.likes });
-                console.log(`✅ 文章 ${articleId} 点赞数增加到 ${article.likes}`);
-                return article.likes;
+            if (environment === 'vercel') {
+                // Vercel 环境：调用 API
+                const url = `${apiBase}/articles?action=like&articleId=${articleId}`;
+                console.log('📡 文章点赞请求:', url);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log(`✅ 文章 ${articleId} 点赞成功，当前点赞数: ${result.likes}`);
+                    return result.likes;
+                }
+                throw new Error(result.error || '点赞失败');
+            } else if (environment === 'local') {
+                // 本地环境：调用本地服务器 API
+                const url = `${apiBase}/articles/${articleId}/like`;
+                console.log('📡 文章点赞请求 (本地):', url);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log(`✅ 文章 ${articleId} 点赞成功`);
+                    return result.likes;
+                }
+                throw new Error(result.error || '点赞失败');
+            } else {
+                // GitHub Pages 等静态环境：只在本地更新
+                console.warn('⚠️ 静态环境，点赞仅在本地生效');
+                const articles = await this.adapter.getArticles();
+                const article = articles.find(a => a.id === parseInt(articleId));
+                
+                if (article) {
+                    article.likes = (article.likes || 0) + 1;
+                    return article.likes;
+                }
             }
         } catch (error) {
-            console.error('增加点赞数失败:', error);
+            console.error('❌ 增加点赞数失败:', error);
             throw error;
         }
     }
@@ -913,17 +957,54 @@ class BlogDataStoreWrapper {
     // 减少文章点赞数
     async decrementLikes(articleId) {
         try {
-            const articles = await this.adapter.getArticles();
-            const article = articles.find(a => a.id === parseInt(articleId));
+            const environment = window.environmentAdapter?.environment;
+            const apiBase = window.environmentAdapter?.apiBase || 'http://localhost:3001/api';
             
-            if (article && article.likes > 0) {
-                article.likes--;
-                await this.adapter.updateArticle(article.id, { likes: article.likes });
-                console.log(`✅ 文章 ${articleId} 点赞数减少到 ${article.likes}`);
-                return article.likes;
+            if (environment === 'vercel') {
+                // Vercel 环境：调用 API
+                const url = `${apiBase}/articles?action=unlike&articleId=${articleId}`;
+                console.log('📡 取消文章点赞请求:', url);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log(`✅ 文章 ${articleId} 取消点赞成功，当前点赞数: ${result.likes}`);
+                    return result.likes;
+                }
+                throw new Error(result.error || '取消点赞失败');
+            } else if (environment === 'local') {
+                // 本地环境：调用本地服务器 API
+                const url = `${apiBase}/articles/${articleId}/unlike`;
+                console.log('📡 取消文章点赞请求 (本地):', url);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log(`✅ 文章 ${articleId} 取消点赞成功`);
+                    return result.likes;
+                }
+                throw new Error(result.error || '取消点赞失败');
+            } else {
+                // GitHub Pages 等静态环境：只在本地更新
+                console.warn('⚠️ 静态环境，取消点赞仅在本地生效');
+                const articles = await this.adapter.getArticles();
+                const article = articles.find(a => a.id === parseInt(articleId));
+                
+                if (article && article.likes > 0) {
+                    article.likes--;
+                    return article.likes;
+                }
             }
         } catch (error) {
-            console.error('减少点赞数失败:', error);
+            console.error('❌ 减少点赞数失败:', error);
             throw error;
         }
     }

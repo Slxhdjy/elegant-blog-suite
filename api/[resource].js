@@ -158,21 +158,22 @@ export default async function handler(req, res) {
           }
         }
         
-        // 🔥 处理留言点赞/差评
-        if (resource === 'guestbook' && ['like', 'unlike', 'dislike', 'undislike'].includes(id)) {
+        // 🔥 处理留言点赞/差评 - 支持 action 和 id 两种格式
+        const guestbookAction = query.action || id;
+        if (resource === 'guestbook' && ['like', 'unlike', 'dislike', 'undislike'].includes(guestbookAction)) {
           const messageId = query.messageId;
           if (!messageId) {
             return res.status(400).json({ success: false, error: '缺少留言ID' });
           }
           
-          console.log(`📊 留言${id}操作:`, messageId);
+          console.log(`📊 留言${guestbookAction}操作:`, messageId);
           const messages = await kv.get('guestbook') || [];
           const messageIndex = messages.findIndex(m => String(m.id) === String(messageId));
           
           if (messageIndex !== -1) {
             const message = messages[messageIndex];
             
-            switch (id) {
+            switch (guestbookAction) {
               case 'like':
                 message.likes = (message.likes || 0) + 1;
                 break;
@@ -194,21 +195,22 @@ export default async function handler(req, res) {
           }
         }
         
-        // 🔥 处理评论点赞/差评
-        if (resource === 'comments' && ['like', 'unlike', 'dislike', 'undislike'].includes(id)) {
+        // 🔥 处理评论点赞/差评 - 支持 action 和 id 两种格式
+        const commentAction = query.action || id;
+        if (resource === 'comments' && ['like', 'unlike', 'dislike', 'undislike'].includes(commentAction)) {
           const commentId = query.commentId;
           if (!commentId) {
             return res.status(400).json({ success: false, error: '缺少评论ID' });
           }
           
-          console.log(`📊 评论${id}操作:`, commentId);
+          console.log(`📊 评论${commentAction}操作:`, commentId);
           const comments = await kv.get('comments') || [];
           const commentIndex = comments.findIndex(c => String(c.id) === String(commentId));
           
           if (commentIndex !== -1) {
             const comment = comments[commentIndex];
             
-            switch (id) {
+            switch (commentAction) {
               case 'like':
                 comment.likes = (comment.likes || 0) + 1;
                 break;
@@ -227,6 +229,37 @@ export default async function handler(req, res) {
             return res.json({ success: true, data: comment });
           } else {
             return res.status(404).json({ success: false, error: '评论未找到' });
+          }
+        }
+        
+        // 🔥 处理文章点赞
+        const articleAction = query.action || id;
+        if (resource === 'articles' && ['like', 'unlike'].includes(articleAction)) {
+          const articleId = query.articleId;
+          if (!articleId) {
+            return res.status(400).json({ success: false, error: '缺少文章ID' });
+          }
+          
+          console.log(`📊 文章${articleAction}操作:`, articleId);
+          const articles = await kv.get('articles') || [];
+          const articleIndex = articles.findIndex(a => String(a.id) === String(articleId));
+          
+          if (articleIndex !== -1) {
+            const article = articles[articleIndex];
+            
+            switch (articleAction) {
+              case 'like':
+                article.likes = (article.likes || 0) + 1;
+                break;
+              case 'unlike':
+                article.likes = Math.max(0, (article.likes || 0) - 1);
+                break;
+            }
+            
+            await kv.set('articles', articles);
+            return res.json({ success: true, data: article, likes: article.likes });
+          } else {
+            return res.status(404).json({ success: false, error: '文章未找到' });
           }
         }
         
@@ -417,10 +450,67 @@ export default async function handler(req, res) {
         console.log('PUT请求详情:', { resource, id, body: requestBody });
         
         if (resource === 'settings') {
-          // settings直接更新
-          console.log('更新settings');
-          await kv.set('settings', requestBody);
-          return res.json({ success: true, data: requestBody });
+          // 🔥 设置更新 - 区分前台统计更新和后台完整更新
+          const existingSettings = await kv.get('settings') || {};
+          
+          // 检查是否是前台统计更新（只包含统计字段）
+          const statsOnlyFields = ['totalViews', 'totalVisitors', 'totalWords'];
+          const requestFields = Object.keys(requestBody);
+          const isStatsOnlyUpdate = requestFields.every(field => 
+            statsOnlyFields.includes(field) || field === 'updatedAt'
+          );
+          
+          // 检查是否有 adminUpdate 标记（后台完整更新）
+          const isAdminUpdate = requestBody._adminUpdate === true;
+          
+          console.log('设置更新检查:', { 
+            requestFields, 
+            isStatsOnlyUpdate, 
+            isAdminUpdate,
+            existingSettingsKeys: Object.keys(existingSettings)
+          });
+          
+          let updatedSettings;
+          
+          if (isStatsOnlyUpdate) {
+            // 前台统计更新：只更新统计字段，保留其他设置
+            console.log('📊 前台统计更新模式');
+            updatedSettings = {
+              ...existingSettings,
+              totalViews: requestBody.totalViews ?? existingSettings.totalViews,
+              totalVisitors: requestBody.totalVisitors ?? existingSettings.totalVisitors,
+              totalWords: requestBody.totalWords ?? existingSettings.totalWords,
+              updatedAt: new Date().toISOString()
+            };
+          } else if (isAdminUpdate) {
+            // 后台完整更新：允许更新所有字段
+            console.log('🔧 后台完整更新模式');
+            const { _adminUpdate, ...cleanedBody } = requestBody; // 移除标记字段
+            updatedSettings = {
+              ...existingSettings,
+              ...cleanedBody,
+              updatedAt: new Date().toISOString()
+            };
+          } else {
+            // 默认：合并更新，但保护关键字段不被清空
+            console.log('⚠️ 默认合并更新模式');
+            const protectedFields = ['siteName', 'siteDescription', 'avatar', 'startDate', 'theme', 'frontendTheme'];
+            updatedSettings = { ...existingSettings };
+            
+            for (const [key, value] of Object.entries(requestBody)) {
+              // 如果是受保护字段且新值为空，保留原值
+              if (protectedFields.includes(key) && (value === null || value === undefined || value === '')) {
+                console.log(`保护字段 ${key}，保留原值:`, existingSettings[key]);
+                continue;
+              }
+              updatedSettings[key] = value;
+            }
+            updatedSettings.updatedAt = new Date().toISOString();
+          }
+          
+          await kv.set('settings', updatedSettings);
+          console.log('✅ 设置更新成功');
+          return res.json({ success: true, data: updatedSettings });
         }
         
         // 更新项目

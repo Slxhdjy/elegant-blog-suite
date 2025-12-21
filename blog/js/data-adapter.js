@@ -486,14 +486,14 @@ class DataAdapter {
             const environment = this.environmentAdapter?.environment;
             
             if (environment === 'vercel') {
-                // Vercel 环境：调用 API 更新（使用 PUT 更新 settings）
+                // Vercel 环境：调用 API 更新（只更新统计字段）
                 try {
                     const apiBase = this.environmentAdapter.apiBase || '/api';
                     const response = await fetch(`${apiBase}/settings`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            ...settings,
+                            // 🔥 只发送统计字段，不发送完整 settings
                             totalWords: calculatedWords,
                             totalViews: calculatedViews
                         })
@@ -508,14 +508,14 @@ class DataAdapter {
                     console.error('❌ [Vercel] 更新统计数据出错:', error);
                 }
             } else if (environment === 'local') {
-                // 本地环境：调用本地服务器 API 更新
+                // 本地环境：调用本地服务器 API 更新（只更新统计字段）
                 try {
                     const apiBase = this.environmentAdapter.apiBase || 'http://localhost:3001/api';
                     const response = await fetch(`${apiBase}/settings`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            ...settings,
+                            // 🔥 只发送统计字段，不发送完整 settings
                             totalWords: calculatedWords,
                             totalViews: calculatedViews
                         })

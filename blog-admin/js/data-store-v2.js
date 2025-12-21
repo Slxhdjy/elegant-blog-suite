@@ -658,7 +658,10 @@ class BlogDataStore {
                 const response = await fetch(`${this.apiUrl}/settings`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updates)
+                    body: JSON.stringify({
+                        ...updates,
+                        _adminUpdate: true  // 🔥 标记为后台更新
+                    })
                 });
                 if (!response.ok) throw new Error('更新设置失败');
                 return await response.json();
